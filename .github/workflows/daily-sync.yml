@@ -1,0 +1,35 @@
+name: Daily Workload Dashboard Refresh
+
+on:
+  schedule:
+    - cron: '30 10 * * 1-5' # Mon-Fri at 05:30 AM EST (10:30 UTC)
+  workflow_dispatch: # Allows one-click manual refresh anytime from the GitHub UI
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Ingest & Build Dashboard
+        run: |
+          python ingest/build_data.py
+          cp dist/workload-dashboard.html index.html
+
+      - name: Commit and Publish
+        run: |
+          git config --global user.name 'Workload-Warriors-Bot'
+          git config --global user.email 'bot@cisco.com'
+          git add dist/ index.html data/ app/data.js
+          git commit -m "Automated Daily Dashboard Refresh [skip ci]" || echo "No changes to commit"
+          git push
