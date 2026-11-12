@@ -8,6 +8,9 @@ on:
     paths:
       - 'data/raw/**'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -28,6 +31,6 @@ jobs:
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git add dist/ index.html data/
-          git commit -m "Auto-sync: Updated live dashboard with latest Salesforce C360 data" || exit 0
+          git add index.html data/
+          git diff --quiet && git diff --staged --quiet || git commit -m "Auto-sync: Updated live dashboard with latest Salesforce C360 data"
           git push
