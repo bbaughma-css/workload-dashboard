@@ -1,1 +1,12 @@
-
+[
+  {"name": "Bob Baughman", "role": "CSS Technical Leader", "arr": "$5,248,318", "active_cps": 10, "active_csw": 14, "derisk_count": 4, "total_score": 33.5},
+  {"name": "Emmanuel Enumegukae", "role": "CSS", "arr": "$3,840,000", "active_cps": 8, "active_csw": 10, "derisk_count": 1, "total_score": 22.0},
+  {"name": "Tanisha Gordon", "role": "CSS", "arr": "$4,120,000", "active_cps": 9, "active_csw": 11, "derisk_count": 3, "total_score": 27.25},
+  {"name": "Todd Sleeme", "role": "CSS", "arr": "$3,950,000", "active_cps": 8, "active_csw": 12, "derisk_count": 0, "total_score": 23.0},
+  {"name": "Jacob Gray", "role": "CSS", "arr": "$2,980,000", "active_cps": 6, "active_csw": 8, "derisk_count": 0, "total_score": 16.0},
+  {"name": "Laura Carder", "role": "CSS", "arr": "$3,100,000", "active_cps": 7, "active_csw": 9, "derisk_count": 0, "total_score": 18.25},
+  {"name": "Andrea Mink", "role": "CSS", "arr": "$2,850,000", "active_cps": 6, "active_csw": 7, "derisk_count": 0, "total_score": 14.75},
+  {"name": "Stephan Bayer", "role": "CSS", "arr": "$3,400,000", "active_cps": 7, "active_csw": 10, "derisk_count": 0, "total_score": 19.5},
+  {"name": "Tonya Farinha", "role": "CSS", "arr": "$2,650,000", "active_cps": 5, "active_csw": 7, "derisk_count": 0, "total_score": 13.75},
+  {"name": "Ben Meyer", "role": "CSS", "arr": "$3,200,000", "active_cps": 6, "active_csw": 9, "derisk_count": 0, "total_score": 17.25}
+]
