@@ -1,19 +1,16 @@
-name: Daily Workload Dashboard Refresh
+name: Daily Salesforce Sync & Build
 
 on:
-  schedule:
-    - cron: '30 10 * * 1-5' # Backup daily schedule at 05:30 AM EST
   repository_dispatch:
-    types: [salesforce-sync] # Triggered instantly by Power Automate
-  workflow_dispatch: # Allows manual 1-click test anytime from GitHub UI
+    types: [salesforce-sync]
+  workflow_dispatch:
+  push:
+    paths:
+      - 'data/raw/**'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pages: write
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -23,15 +20,14 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Ingest and Build Dashboard
+      - name: Run Dashboard Build Engine
         run: |
           python ingest/build_data.py
-          cp dist/workload-dashboard.html index.html
 
-      - name: Commit and Publish
+      - name: Deploy Live Dashboard
         run: |
-          git config --global user.name 'Workload-Warriors-Bot'
-          git config --global user.email 'bot@cisco.com'
-          git add dist/ index.html data/ app/data.js
-          git commit -m "Automated Salesforce Sync Refresh [skip ci]" || echo "No changes to commit"
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add dist/ index.html data/
+          git commit -m "Auto-sync: Updated live dashboard with latest Salesforce C360 data" || exit 0
           git push
