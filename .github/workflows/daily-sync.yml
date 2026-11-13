@@ -1,36 +1,44 @@
-name: Daily Salesforce Sync & Build
+name: Daily Salesforce Dual-Report Sync & Build
 
 on:
+  schedule:
+    # Runs Monday through Friday at 11:00 UTC (6:00 AM EST)
+    - cron: '0 11 * * 1-5'
+  workflow_dispatch: # Allows one-click manual run in GitHub Actions UI
   repository_dispatch:
     types: [salesforce-sync]
-  workflow_dispatch:
-  push:
-    paths:
-      - 'data/raw/**'
 
 permissions:
   contents: write
 
 jobs:
-  build:
+  build-and-sync:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Run Dashboard Build Engine
+      - name: Install Dependencies
         run: |
-          python ingest/build_data.py
+          python -m pip install --upgrade pip
+          python -m pip install beautifulsoup4
 
-      - name: Deploy Live Dashboard
+      - name: Execute Dual-Report Ingestion & Dashboard Build
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git add index.html data/
-          git diff --quiet && git diff --staged --quiet || git commit -m "Auto-sync: Updated live dashboard with latest Salesforce C360 data"
-          git push
+          python3 ingest/build_data.py
+
+      - name: Run Comprehensive Validation Test Suite
+        run: |
+          python3 -m unittest discover tests
+
+      - name: Commit & Publish Live Dashboard to GitHub Pages
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --staged --quiet || (git commit -m "Auto-sync dual Salesforce reports and refresh live dashboard [skip ci]" && git push)
