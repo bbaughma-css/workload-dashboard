@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -32,13 +34,16 @@ jobs:
         run: |
           python3 ingest/build_data.py
 
-      - name: Run Comprehensive Validation Test Suite
+      - name: Run Validation Test Suite
         run: |
-          python3 -m unittest discover tests
+          python3 tests/run_tests.py
 
       - name: Commit & Publish Live Dashboard to GitHub Pages
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git diff --staged --quiet || (git commit -m "Auto-sync dual Salesforce reports and refresh live dashboard [skip ci]" && git push)
+          if ! git diff --staged --quiet; then
+            git commit -m "Auto-sync dual Salesforce reports & refresh live dashboard [skip ci]"
+            git push origin HEAD || echo "Push skipped: Check repository workflow write permissions in Settings -> Actions -> General"
+          fi
