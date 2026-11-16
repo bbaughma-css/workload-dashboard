@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workload Warriors - Customer Success Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-theme="dark">
+  <div id="app-root">
+    <!-- Top Bar Header -->
+    <header class="topbar" id="topbar">
+      <a class="brand" href="#/" onclick="navigateTo('portfolio'); return false;">
+        <svg class="hexlogo" viewBox="0 0 26 29">
+          <polygon points="13,1 25,7.5 25,21.5 13,28 1,21.5 1,7.5" fill="none" stroke="#02C8FF" stroke-width="1.8"></polygon>
+          <polygon points="13,7 19,10.5 19,17.5 13,21 7,17.5 7,10.5" fill="#02C8FF" opacity="0.85"></polygon>
+        </svg>
+        <div class="brand-text">
+          <div class="nm"><b>Workload Warriors</b> Customer Success Tracker</div>
+          <div class="sub">Cloud Protection Suite &amp; Secure Workload | Nathan Stumpe Team</div>
+        </div>
+      </a>
+
+      <div class="proj-badge">
+        <span class="proj-dot"></span>
+        <span class="proj-title">CPS &amp; Secure Workload</span>
+      </div>
+
+      <div class="grow"></div>
+
+      <!-- Navigation Bar -->
+      <nav class="navgroup" id="navgroup">
+        <button class="navbtn active" id="nav-portfolio" onclick="navigateTo('portfolio')">Portfolio (<span id="nav-pf-count">226</span>)</button>
+        <button class="navbtn" id="nav-team" onclick="navigateTo('team')">Team Capacity (<span id="nav-team-count">11</span>)</button>
+        <button class="navbtn" id="nav-renewals" onclick="navigateTo('renewals')">Renewals Intelligence</button>
+        <button class="navbtn" id="nav-derisk" onclick="navigateTo('derisk')">De-Risk Pipeline (<span id="nav-dr-count">15</span>)</button>
+        <button class="navbtn" id="nav-governance" onclick="navigateTo('governance')">Notes &amp; Governance (<span id="nav-notes-count">114</span>)</button>
+        <button class="navbtn" id="nav-quality" onclick="navigateTo('quality')">Data Quality (<span id="nav-qual-count">0</span>)</button>
+      </nav>
+
+      <!-- Actions -->
+      <div class="header-actions">
+        <button class="btn ghost" onclick="toggleTheme()" title="Toggle Dark/Light Mode">🌓 Theme</button>
+        <button class="btn primary" onclick="exportPortfolioCSV()" title="Export Portfolio to CSV">📥 Export CSV</button>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-body" id="main-body">
+
+      <!-- ================= 1. PORTFOLIO VIEW ================= -->
+      <section id="view-portfolio" class="view-panel active">
+        <!-- Top Executive KPI Strip -->
+        <div class="kpi-strip">
+          <div class="kpi-card blue">
+            <div class="kpi-lbl">Active Working Accounts</div>
+            <div class="kpi-val" id="kpi-total-accts">226</div>
+            <div class="kpi-sub">Nathan Stumpe Portfolio</div>
+          </div>
+          <div class="kpi-card green">
+            <div class="kpi-lbl">Total Working ARR</div>
+            <div class="kpi-val" id="kpi-total-arr">$38.71M</div>
+            <div class="kpi-sub">Active Customer Base</div>
+          </div>
+          <div class="kpi-card cyan">
+            <div class="kpi-lbl">CPS Segment</div>
+            <div class="kpi-val" id="kpi-cps-accts">81 <span class="kpi-mini">($8.35M)</span></div>
+            <div class="kpi-sub">Cloud Protection Suite</div>
+          </div>
+          <div class="kpi-card purple">
+            <div class="kpi-lbl">Secure Workload</div>
+            <div class="kpi-val" id="kpi-csw-accts">145 <span class="kpi-mini">($30.37M)</span></div>
+            <div class="kpi-sub">CSW Deployments</div>
+          </div>
+          <div class="kpi-card red">
+            <div class="kpi-lbl">Priority De-Risk</div>
+            <div class="kpi-val" id="kpi-dr-accts">15 <span class="kpi-mini">($4.64M)</span></div>
+            <div class="kpi-sub">Retention Focus</div>
+          </div>
+          <div class="kpi-card amber">
+            <div class="kpi-lbl">Critical Red Pulses</div>
+            <div class="kpi-val" id="kpi-red-pulses">27</div>
+            <div class="kpi-sub">Active Escalations</div>
+          </div>
+        </div>
+
+        <!-- Quick Filter Chips Bar -->
+        <div class="chips-container" id="chips-bar">
+          <div class="chip-group">
+            <span class="chip-group-lbl">Segment &amp; Priority:</span>
+            <button class="chip active" data-filter="all" onclick="setQuickFilter('all')">All Working Accounts (<span id="chip-cnt-all">226</span>)</button>
+            <button class="chip" data-filter="cps" onclick="setQuickFilter('cps')">🛡️ CPS Accounts (<span id="chip-cnt-cps">81</span>)</button>
+            <button class="chip" data-filter="csw" onclick="setQuickFilter('csw')">🔒 Secure Workload (<span id="chip-cnt-csw">145</span>)</button>
+            <button class="chip chip-warn" data-filter="derisk" onclick="setQuickFilter('derisk')">⚠️ Priority De-Risk (15)</button>
+            <button class="chip chip-danger" data-filter="red" onclick="setQuickFilter('red')">🔴 Red Pulses (27)</button>
+            <button class="chip chip-success" data-filter="onboarded" onclick="setQuickFilter('onboarded')">✅ Onboarded Successful (13)</button>
+            <button class="chip chip-info" data-filter="current-qtr" onclick="setQuickFilter('current-qtr')">⚡ Current Qtr (FY27 Q1)</button>
+          </div>
+        </div>
+
+        <!-- CSS Dynamic Portfolio Strip -->
+        <div class="css-strip-container">
+          <div class="css-strip-hdr">Dynamic CSS Portfolio (Click to Filter):</div>
+          <div class="css-strip-chips" id="portfolio-css-chips">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Search & Control Bar -->
+        <div class="control-bar">
+          <div class="search-box">
+            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="pf-search-input" class="search-input" placeholder="Search account name, plan ID, CSS owner, notes, or deal..." oninput="handlePortfolioSearch()">
+          </div>
+
+          <div class="filter-controls">
+            <select id="pf-owner-select" class="dropdown-filter" onchange="handlePortfolioFilterChange()">
+              <option value="all">All CSSs</option>
+            </select>
+
+            <select id="pf-status-select" class="dropdown-filter" onchange="handlePortfolioFilterChange()">
+              <option value="all">All Stages / Statuses</option>
+            </select>
+
+            <select id="pf-pulse-select" class="dropdown-filter" onchange="handlePortfolioFilterChange()">
+              <option value="all">All Pulses</option>
+              <option value="Green">Green</option>
+              <option value="Yellow">Yellow</option>
+              <option value="Red">Red</option>
+              <option value="None">None / Blank</option>
+            </select>
+
+            <select id="pf-qtr-select" class="dropdown-filter" onchange="handlePortfolioFilterChange()">
+              <option value="all">All FY Quarters</option>
+            </select>
+          </div>
+
+          <div class="view-meta">
+            Showing <strong id="pf-visible-count">226</strong> of <strong>226</strong> accounts
+          </div>
+        </div>
+
+        <!-- High Density Portfolio Table -->
+        <div class="portfolio-grid-wrap">
+          <div class="grid-table-hdr">
+            <div class="gh-cell gh-icon"></div>
+            <div class="gh-cell gh-acct sortable" onclick="sortPortfolio('clean_acct')">Account Name <span class="sort-arr" id="sort-arr-clean_acct">↕</span></div>
+            <div class="gh-cell gh-prio sortable" onclick="sortPortfolio('priority')">Prio <span class="sort-arr" id="sort-arr-priority">↕</span></div>
+            <div class="gh-cell gh-owner sortable" onclick="sortPortfolio('owner')">CSS Owner <span class="sort-arr" id="sort-arr-owner">↕</span></div>
+            <div class="gh-cell gh-stage sortable" onclick="sortPortfolio('status')">Stage / Status <span class="sort-arr" id="sort-arr-status">↕</span></div>
+            <div class="gh-cell gh-pulse sortable" onclick="sortPortfolio('pulse')">Pulse <span class="sort-arr" id="sort-arr-pulse">↕</span></div>
+            <div class="gh-cell gh-arr sortable" onclick="sortPortfolio('arr_num')">ARR <span class="sort-arr" id="sort-arr-arr_num">↕</span></div>
+            <div class="gh-cell gh-qtr sortable" onclick="sortPortfolio('renewal_quarter')">Renewal Qtr <span class="sort-arr" id="sort-arr-renewal_quarter">↕</span></div>
+            <div class="gh-cell gh-progress">Action Plan Steps</div>
+            <div class="gh-cell gh-touch sortable" onclick="sortPortfolio('last_modified')">Last Touch <span class="sort-arr" id="sort-arr-last_modified">↕</span></div>
+            <div class="gh-cell gh-action">Action Plan</div>
+          </div>
+
+          <div class="grid-table-body" id="portfolio-rows-container">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 2. ACTION PLAN DRILLDOWN VIEW (#/a/:id) ================= -->
+      <section id="view-drilldown" class="view-panel">
+        <!-- Drilldown Top Navigation & Header -->
+        <div class="drilldown-topbar">
+          <button class="back-btn" onclick="navigateTo('portfolio')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back to Portfolio
+          </button>
+          <div class="drilldown-breadcrumb">
+            Portfolio <span class="sep">/</span> <span id="dd-crumb-segment">Cloud Protection Suite</span> <span class="sep">/</span> <strong id="dd-crumb-account">ACCOUNT NAME</strong>
+          </div>
+        </div>
+
+        <!-- Account Header Card -->
+        <div class="account-hdr-card">
+          <div class="acthead-main">
+            <div class="acthead-title-row">
+              <div class="act-logo-badge" id="dd-logo-badge">CPS</div>
+              <div>
+                <h1 class="act-title" id="dd-account-name">ACCOUNT NAME</h1>
+                <div class="act-subtitle">
+                  <span class="meta-tag id-tag" id="dd-plan-id">aGte000000XXXXXX</span>
+                  <span class="meta-tag" id="dd-plan-name">Cloud Protection Suite</span>
+                  <span class="meta-tag" id="dd-account-key">BU-key</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="acthead-stats">
+              <div class="stat-pill">
+                <span class="stat-lbl">CSS Owner</span>
+                <span class="stat-val bold" id="dd-owner">Bob Baughman</span>
+              </div>
+              <div class="stat-pill">
+                <span class="stat-lbl">Customer Pulse</span>
+                <span class="stat-val" id="dd-pulse-badge"><span class="dot-pulse-green"></span> Green</span>
+              </div>
+              <div class="stat-pill">
+                <span class="stat-lbl">Lifecycle Stage</span>
+                <span class="stat-val" id="dd-status-badge">On Track</span>
+              </div>
+              <div class="stat-pill">
+                <span class="stat-lbl">Annual Recurring Revenue</span>
+                <span class="stat-val green-text bold" id="dd-arr">$1,420,000</span>
+              </div>
+              <div class="stat-pill">
+                <span class="stat-lbl">Cisco FY Renewal</span>
+                <span class="stat-val cyan-text bold" id="dd-renewal-qtr">FY27 Q1</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Direct SFDC Links -->
+          <div class="acthead-links">
+            <a id="dd-sfdc-plan-link" href="#" target="_blank" class="btn primary small-btn">🔗 Open Action Plan in C360</a>
+            <a id="dd-sfdc-acct-link" href="#" target="_blank" class="btn ghost small-btn">🏢 Open Salesforce Account</a>
+          </div>
+        </div>
+
+        <!-- Drilldown Sub-Navigation Tabs -->
+        <div class="subnav-tabs">
+          <button class="subtab-btn active" data-subtab="overview" onclick="switchSubTab('overview')">📊 Overview &amp; Milestones</button>
+          <button class="subtab-btn" data-subtab="racetrack" onclick="switchSubTab('racetrack')">🏁 Racetrack</button>
+          <button class="subtab-btn" data-subtab="steps" onclick="switchSubTab('steps')">📋 Action Plan Steps (<span id="dd-steps-count">6</span>)</button>
+          <button class="subtab-btn" data-subtab="updates" onclick="switchSubTab('updates')">📝 Updates &amp; Touch Log</button>
+          <button class="subtab-btn" data-subtab="history" onclick="switchSubTab('history')">⏳ Onboarding &amp; History</button>
+          <button class="subtab-btn" data-subtab="renewals" onclick="switchSubTab('renewals')">📅 Deals &amp; Contract Runway</button>
+          <button class="subtab-btn" data-subtab="cases" onclick="switchSubTab('cases')">🛡️ Cases &amp; Escalations</button>
+        </div>
+
+        <!-- Subtab Content Panels -->
+        <div class="subtab-content-area">
+          
+          <!-- Subtab 1: Overview & Milestones -->
+          <div id="subtab-overview" class="subtab-panel active">
+            <!-- Visual Milestone Progression Bar -->
+            <div class="section-card">
+              <div class="card-title-row">
+                <h3>Action Plan Milestone Progression</h3>
+                <span class="badge-pill cyan-pill" id="dd-progress-pct">Stage 4 of 6 · 67% Complete</span>
+              </div>
+              <div class="milestone-stepper" id="dd-stepper-container">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+
+            <div class="grid-2col">
+              <!-- Team Assignment Card -->
+              <div class="section-card">
+                <h3>Assigned Account Team &amp; Governance</h3>
+                <div class="team-slots-list" id="dd-team-slots">
+                  <!-- Rendered dynamically -->
+                </div>
+              </div>
+
+              <!-- Executive Context & Notes -->
+              <div class="section-card">
+                <h3>Strategic Context &amp; Objectives</h3>
+                <div class="context-box" id="dd-context-notes">
+                  <!-- Rendered dynamically -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subtab 2: RACETRACK VIEW (NEW TAB) -->
+          <div id="subtab-racetrack" class="subtab-panel">
+            <div class="section-card">
+              <div class="card-title-row">
+                <div>
+                  <h3 id="racetrack-plan-title">Customer Success Journey Racetrack</h3>
+                  <div class="card-desc" id="racetrack-plan-subtitle">Dynamic lifecycle journey pipeline matched to active account stage and deliverable milestones.</div>
+                </div>
+                <div class="racetrack-kpis">
+                  <span class="badge-pill cyan-pill" id="rt-stage-badge">Stage 4 · Active</span>
+                  <span class="badge-pill" id="rt-sla-badge">Target SLA: Day 31-60</span>
+                </div>
+              </div>
+
+              <!-- High-Impact Visual Racetrack Canvas -->
+              <div class="racetrack-canvas" id="racetrack-canvas-container">
+                <!-- Connected Racetrack Track & Nodes Rendered via JS -->
+              </div>
+
+              <!-- Detailed Stage Dossier Section -->
+              <div class="racetrack-dossier" id="racetrack-dossier-container">
+                <!-- Selected stage details rendered via JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Subtab 3: Action Plan Steps -->
+          <div id="subtab-steps" class="subtab-panel">
+            <div class="section-card">
+              <div class="card-title-row">
+                <div>
+                  <h3>Detailed Action Plan Execution Steps</h3>
+                  <div class="card-desc">Comprehensive step-by-step milestones, technical deliverables, and completion checkpoints.</div>
+                </div>
+                <div class="steps-legend">
+                  <span class="legend-item"><span class="badge-dot done"></span> Completed</span>
+                  <span class="legend-item"><span class="badge-dot active"></span> In Progress</span>
+                  <span class="legend-item"><span class="badge-dot pend"></span> Pending</span>
+                  <span class="legend-item"><span class="badge-dot blocked"></span> Blocked / Red</span>
+                </div>
+              </div>
+
+              <div class="plan-steps-container" id="dd-plan-steps-list">
+                <!-- Rendered dynamically with step cards -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Subtab 4: Updates & Touch Log -->
+          <div id="subtab-updates" class="subtab-panel">
+            <div class="grid-2col">
+              <div class="section-card">
+                <div class="card-title-row">
+                  <h3>C360 Touch Log &amp; Meeting Recaps</h3>
+                  <span class="badge-pill" id="dd-updates-badge">Authentic SFDC C360 Notes</span>
+                </div>
+                <div class="updates-timeline" id="dd-updates-timeline">
+                  <!-- Rendered dynamically -->
+                </div>
+              </div>
+
+              <div class="section-card">
+                <h3>Touch Freshness &amp; Compliance</h3>
+                <div class="freshness-grid">
+                  <div class="fresh-card">
+                    <div class="fresh-lbl">Last C360 Activity Date</div>
+                    <div class="fresh-val" id="dd-fresh-date">2026-10-21</div>
+                  </div>
+                  <div class="fresh-card">
+                    <div class="fresh-lbl">Days Since Last Touch</div>
+                    <div class="fresh-val green-text bold" id="dd-fresh-days">2 days ago</div>
+                  </div>
+                  <div class="fresh-card">
+                    <div class="fresh-lbl">Governance Status</div>
+                    <div class="fresh-val" id="dd-fresh-status"><span class="pill-green">Compliant (&lt;14d)</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subtab 5: Onboarding & History -->
+          <div id="subtab-history" class="subtab-panel">
+            <div class="section-card">
+              <h3>Lifecycle Transition &amp; Milestone History</h3>
+              <div class="history-timeline" id="dd-history-timeline">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Subtab 6: Deals & Contract Runway -->
+          <div id="subtab-renewals" class="subtab-panel">
+            <div class="section-card">
+              <h3>Contract, Renewal Runway &amp; Financials</h3>
+              <div class="deals-summary-grid">
+                <div class="deal-kpi">
+                  <span class="deal-kpi-lbl">Total Annual Recurring Revenue (ARR)</span>
+                  <span class="deal-kpi-val green-text" id="dd-deal-arr">$1,420,000</span>
+                </div>
+                <div class="deal-kpi">
+                  <span class="deal-kpi-lbl">Cisco Fiscal Renewal Quarter</span>
+                  <span class="deal-kpi-val cyan-text" id="dd-deal-qtr">FY27 Q1</span>
+                </div>
+                <div class="deal-kpi">
+                  <span class="deal-kpi-lbl">Renewal Risk Status</span>
+                  <span class="deal-kpi-val" id="dd-deal-risk">Normal Retention</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subtab 7: Cases & Escalations -->
+          <div id="subtab-cases" class="subtab-panel">
+            <div class="section-card">
+              <h3>Technical Cases, Escalations &amp; De-Risk Interventions</h3>
+              <div id="dd-cases-container">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ================= 3. TEAM WORKLOAD & CAPACITY VIEW ================= -->
+      <section id="view-team" class="view-panel">
+        <div class="kpi-strip">
+          <div class="kpi-card blue">
+            <div class="kpi-lbl">Total Working Accounts</div>
+            <div class="kpi-val" id="team-kpi-accts">226</div>
+            <div class="kpi-sub">Assigned Base</div>
+          </div>
+          <div class="kpi-card green">
+            <div class="kpi-lbl">Total Portfolio ARR</div>
+            <div class="kpi-val" id="team-kpi-arr">$38.71M</div>
+            <div class="kpi-sub">Active ARR</div>
+          </div>
+          <div class="kpi-card purple">
+            <div class="kpi-lbl">Active CSS Specialists</div>
+            <div class="kpi-val">11</div>
+            <div class="kpi-sub">Nathan Stumpe Team</div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="card-title-row">
+            <h3>CSS Bandwidth Index, Account Distribution &amp; Workload</h3>
+            <div class="filter-group">
+              <input type="text" id="team-search" class="search-input" placeholder="Search CSS..." oninput="filterTeamTable()">
+            </div>
+          </div>
+
+          <table class="hyper-table" id="team-table">
+            <thead>
+              <tr>
+                <th class="sortable" onclick="sortTeam('name')">CSS Name</th>
+                <th class="sortable" onclick="sortTeam('leader')">Leader</th>
+                <th class="sortable" onclick="sortTeam('total_accounts')">Total Accounts</th>
+                <th class="sortable" onclick="sortTeam('total_arr')">Total ARR</th>
+                <th class="sortable" onclick="sortTeam('cps_count')">Active CPS</th>
+                <th class="sortable" onclick="sortTeam('workload_count')">Active CSW</th>
+                <th class="sortable" onclick="sortTeam('completed_successful_count')">Onboarded</th>
+                <th class="sortable" onclick="sortTeam('derisk_count')">De-Risk</th>
+                <th class="sortable" onclick="sortTeam('red_pulse_count')">Red Pulses</th>
+                <th class="sortable" onclick="sortTeam('capacity_score')">Bandwidth Index</th>
+              </tr>
+            </thead>
+            <tbody id="team-table-body">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================= 4. RENEWALS INTELLIGENCE VIEW ================= -->
+      <section id="view-renewals" class="view-panel">
+        <div class="kpi-strip">
+          <div class="kpi-card blue">
+            <div class="kpi-lbl">Selected Quarter Accounts</div>
+            <div class="kpi-val" id="ren-kpi-accts">226</div>
+            <div class="kpi-sub" id="ren-kpi-qtr-lbl">All Fiscal Quarters</div>
+          </div>
+          <div class="kpi-card green">
+            <div class="kpi-lbl">Selected Quarter ARR</div>
+            <div class="kpi-val" id="ren-kpi-arr">$38.71M</div>
+            <div class="kpi-sub">Portfolio Renewal Value</div>
+          </div>
+          <div class="kpi-card amber">
+            <div class="kpi-lbl">Current Qtr (FY27 Q1)</div>
+            <div class="kpi-val" id="ren-kpi-curr-qtr">0</div>
+            <div class="kpi-sub">Immediate Focus</div>
+          </div>
+        </div>
+
+        <!-- Extended Quarters Quick Chips -->
+        <div class="quarter-chips-wrapper">
+          <span class="chips-label">Quick FY Quarter Filter (Extended Multi-Year Horizon):</span>
+          <div class="quarter-chips" id="ren-quarter-chips">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Dynamic CSS Strip for Renewals -->
+        <div class="css-strip-container">
+          <div class="css-strip-hdr">Dynamic Count &amp; ARR per CSS (for Selected Quarter):</div>
+          <div class="css-strip-chips" id="ren-css-strip"></div>
+        </div>
+
+        <div class="section-card">
+          <div class="card-title-row">
+            <h3>Renewals Intelligence by Cisco Fiscal Quarter</h3>
+            <div class="filter-group">
+              <input type="text" id="ren-search" class="search-input" placeholder="Search renewals..." oninput="filterRenewalsTable()">
+              <select id="ren-owner-select" class="dropdown-filter" onchange="filterRenewalsTable()">
+                <option value="all">All CSSs</option>
+              </select>
+            </div>
+          </div>
+
+          <table class="hyper-table">
+            <thead>
+              <tr>
+                <th>Account Name</th>
+                <th>CSS Owner</th>
+                <th>Cisco FY Quarter</th>
+                <th>ARR</th>
+                <th>Pulse</th>
+                <th>Program / Stage</th>
+                <th>De-Risk Focus</th>
+                <th>Drilldown</th>
+              </tr>
+            </thead>
+            <tbody id="ren-table-body">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================= 5. DE-RISK PIPELINE VIEW ================= -->
+      <section id="view-derisk" class="view-panel">
+        <div class="kpi-strip">
+          <div class="kpi-card blue">
+            <div class="kpi-lbl">De-Risk Accounts</div>
+            <div class="kpi-val" id="dr-kpi-accts">15</div>
+            <div class="kpi-sub">Strategic Retention</div>
+          </div>
+          <div class="kpi-card red">
+            <div class="kpi-lbl">ARR at Risk</div>
+            <div class="kpi-val" id="dr-kpi-arr">$4.64M</div>
+            <div class="kpi-sub">Portfolio Exposure</div>
+          </div>
+          <div class="kpi-card purple">
+            <div class="kpi-lbl">Selected Quarter</div>
+            <div class="kpi-val" id="dr-kpi-qtr-lbl">All Fiscal Quarters</div>
+            <div class="kpi-sub">Planning Filter</div>
+          </div>
+        </div>
+
+        <!-- Extended Quarters Quick Chips for De-Risk -->
+        <div class="quarter-chips-wrapper">
+          <span class="chips-label">Quick FY Quarter Filter (De-Risk Planning Horizon):</span>
+          <div class="quarter-chips" id="dr-quarter-chips">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Dynamic CSS Strip for De-Risk -->
+        <div class="css-strip-container">
+          <div class="css-strip-hdr">Dynamic De-Risk Count &amp; ARR per CSS (for Selected Quarter):</div>
+          <div class="css-strip-chips" id="dr-css-strip"></div>
+        </div>
+
+        <div class="section-card">
+          <div class="card-title-row">
+            <h3>Priority De-Risk &amp; Strategic Retention Accounts</h3>
+            <div class="filter-group">
+              <input type="text" id="dr-search" class="search-input" placeholder="Search de-risk..." oninput="filterDeRiskTable()">
+              <select id="dr-owner-select" class="dropdown-filter" onchange="filterDeRiskTable()">
+                <option value="all">All CSSs</option>
+              </select>
+            </div>
+          </div>
+
+          <table class="hyper-table">
+            <thead>
+              <tr>
+                <th>Account Name</th>
+                <th>CSS Owner</th>
+                <th>Pulse</th>
+                <th>ARR at Risk</th>
+                <th>Renewal Qtr</th>
+                <th>De-Risk Root Cause &amp; Technical Intervention Plan</th>
+                <th>Action Plan</th>
+              </tr>
+            </thead>
+            <tbody id="dr-table-body">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================= 6. NOTES & TOUCH GOVERNANCE VIEW ================= -->
+      <section id="view-governance" class="view-panel">
+        <div class="kpi-strip">
+          <div class="kpi-card blue">
+            <div class="kpi-lbl">Governed C360 Accounts</div>
+            <div class="kpi-val" id="gov-kpi-accts">114</div>
+            <div class="kpi-sub">Section 3 Rollup</div>
+          </div>
+          <div class="kpi-card green">
+            <div class="kpi-lbl">Active C360 Action Plans</div>
+            <div class="kpi-val" id="gov-kpi-plans">114</div>
+            <div class="kpi-sub">Logged in Salesforce</div>
+          </div>
+          <div class="kpi-card purple">
+            <div class="kpi-lbl">Touch Compliance</div>
+            <div class="kpi-val">100%</div>
+            <div class="kpi-sub">Frequency Audit</div>
+          </div>
+        </div>
+
+        <!-- Dynamic CSS Strip for Governance -->
+        <div class="css-strip-container">
+          <div class="css-strip-hdr">Dynamic Count &amp; Action Plans per CSS:</div>
+          <div class="css-strip-chips" id="gov-css-strip"></div>
+        </div>
+
+        <div class="section-card">
+          <div class="card-title-row">
+            <h3>Action Item Notes Audit &amp; Touch Frequency Governance</h3>
+            <div class="filter-group">
+              <input type="text" id="gov-search" class="search-input" placeholder="Search account or notes..." oninput="filterGovTable()">
+              <select id="gov-owner-select" class="dropdown-filter" onchange="filterGovTable()">
+                <option value="all">All CSSs</option>
+              </select>
+            </div>
+          </div>
+
+          <table class="hyper-table">
+            <thead>
+              <tr>
+                <th>Account Name</th>
+                <th>Plan ID</th>
+                <th>CSS Owner</th>
+                <th>Status</th>
+                <th>Pulse</th>
+                <th>Days Since Touch</th>
+                <th>Days Open</th>
+                <th>Authentic C360 Operational Notes</th>
+                <th>Drilldown</th>
+              </tr>
+            </thead>
+            <tbody id="gov-table-body">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================= 7. DATA QUALITY VIEW ================= -->
+      <section id="view-quality" class="view-panel">
+        <div class="kpi-strip">
+          <div class="kpi-card red">
+            <div class="kpi-lbl">Total Quality Gaps</div>
+            <div class="kpi-val" id="qual-kpi-total">0</div>
+            <div class="kpi-sub">Identified Gaps</div>
+          </div>
+          <div class="kpi-card amber">
+            <div class="kpi-lbl">Missing Pulses</div>
+            <div class="kpi-val" id="qual-kpi-pulses">0</div>
+            <div class="kpi-sub">Action Recommended</div>
+          </div>
+          <div class="kpi-card green">
+            <div class="kpi-lbl">Portfolio Health</div>
+            <div class="kpi-val">Optimal</div>
+            <div class="kpi-sub">Working Base Clean</div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="card-title-row">
+            <h3>Data Quality &amp; C360 Hygiene Report</h3>
+            <div class="filter-group">
+              <input type="text" id="qual-search" class="search-input" placeholder="Search issue..." oninput="filterQualityTable()">
+              <select id="qual-owner-select" class="dropdown-filter" onchange="filterQualityTable()">
+                <option value="all">All CSSs</option>
+              </select>
+            </div>
+          </div>
+
+          <table class="hyper-table">
+            <thead>
+              <tr>
+                <th>Severity</th>
+                <th>Issue Type</th>
+                <th>Account Name</th>
+                <th>CSS Owner</th>
+                <th>Action Recommended</th>
+              </tr>
+            </thead>
+            <tbody id="qual-table-body">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Workload Warriors Customer Success Tracker - Bob Baughman</title>
+<meta content="Bob Baughman" name="author"/>
+<link href="styles.css" rel="stylesheet"/>
+</head>
+<body data-theme="dark">
+<div id="app-root">
+<!-- Top Bar Header -->
+<header class="topbar" id="topbar">
+<a class="brand" href="#/" onclick="navigateTo('portfolio'); return false;">
+<svg class="hexlogo" viewbox="0 0 26 29">
+<polygon fill="none" points="13,1 25,7.5 25,21.5 13,28 1,21.5 1,7.5" stroke="#02C8FF" stroke-width="1.8"></polygon>
+<polygon fill="#02C8FF" opacity="0.85" points="13,7 19,10.5 19,17.5 13,21 7,17.5 7,10.5"></polygon>
+</svg>
+<div class="brand-text">
+<div class="nm">Workload Warriors Customer Success Tracker</div>
+</div>
+</a>
+<!-- Navigation Bar -->
+<nav class="navgroup" id="navgroup">
+<button class="navbtn active" id="nav-portfolio" onclick="navigateTo('portfolio')">Portfolio (<span id="nav-pf-count">186</span>)</button>
+<button class="navbtn" id="nav-aging" onclick="navigateTo('aging')">Aging Onboarding &gt; 120d (<span id="nav-aging-count">129</span>)</button>
+<button class="navbtn" id="nav-team" onclick="navigateTo('team')">Team Capacity (<span id="nav-team-count">10</span>)</button>
+<button class="navbtn" id="nav-renewals" onclick="navigateTo('renewals')">Renewals Runway</button>
+<button class="navbtn" id="nav-derisk" onclick="navigateTo('derisk')">De-Risk Pipeline (<span id="nav-dr-count">15</span>)</button>
+<button class="navbtn" id="nav-governance" onclick="navigateTo('governance')">Notes &amp; Governance (<span id="nav-notes-count">201</span>)</button>
+<button class="navbtn" id="nav-archived" onclick="navigateTo('archived')">Archived / Closed (<span id="nav-archived-count">65</span>)</button>
+<button class="navbtn" id="nav-quality" onclick="navigateTo('quality')">Data Quality (<span id="nav-qual-count">83</span>)</button>
+</nav>
+<!-- Header Actions -->
+<div class="header-actions">
+<button class="btn ghost small-btn" onclick="exportPortfolioCSV()" title="Export Portfolio to CSV">⬇ CSV</button>
+<button class="btn ghost small-btn" onclick="toggleTheme()" title="Toggle Theme">🌓</button>
+<div class="user-chip" style="display:flex; align-items:center; gap:8px; padding:4px 10px; border-radius:18px; background:rgba(2,200,255,0.08); border:1px solid rgba(2,200,255,0.3);"><div class="user-avatar-btn" style="width:24px; height:24px; font-size:10px; border-radius:50%; background:rgba(2,200,255,0.2); color:var(--cyan); display:flex; align-items:center; justify-content:center; font-weight:800;">BB</div><span style="font-weight:600; font-size:12px; color:var(--fg);">Bob Baughman</span></div>
+</div>
+</header>
+<!-- Main Container Body -->
+<main class="main-body" id="app">
+
+<!-- ================= VIEW 1: PORTFOLIO ================= -->
+<section class="view-panel active" id="view-portfolio">
+<!-- Hyperbees Summary Bar (SUMBAR) -->
+<div class="sumbar" id="sumbar">
+<div class="kpi">
+<span class="v" id="kpi-total-accts">186</span>
+<span class="l">Active Accounts</span>
+</div>
+<div class="sep"></div>
+<div class="kpi">
+<span class="v blue" id="kpi-total-arr">$38.71M</span>
+<span class="l">Total ARR</span>
+</div>
+<div class="kpi">
+<span class="v" id="kpi-cps-accts">81 <span class="kpi-mini">($15.2M)</span></span>
+<span class="l">Cloud Protection Suite</span>
+</div>
+<div class="kpi">
+<span class="v" id="kpi-csw-accts">145 <span class="kpi-mini">($23.5M)</span></span>
+<span class="l">Cisco Secure Workload</span>
+</div>
+<div class="sep"></div>
+<button class="kpi kpi-btn" onclick="setQuickFilter('derisk')" title="Click to filter Priority De-Risk accounts" type="button">
+<span class="v amber" id="kpi-dr-accts">15 <span class="kpi-mini">($2.8M)</span></span>
+<span class="l" style="display:inline-flex;align-items:center;gap:5px"><span class="dot-pulse dot-yellow"></span>Priority De-Risk</span>
+</button>
+<button class="kpi kpi-btn" onclick="setQuickFilter('red')" title="Click to filter Red Pulses" type="button">
+<span class="v red" id="kpi-red-pulses">27</span>
+<span class="l" style="display:inline-flex;align-items:center;gap:5px"><span class="dot-pulse dot-red"></span>Red Pulses</span>
+</button>
+</div>
+
+<!-- Controls & Filters Bar -->
+<div class="controls-bar">
+<div class="search-box">
+<svg class="search-icon" fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14">
+<circle cx="11" cy="11" r="8"></circle>
+<line x1="21" x2="16.65" y1="21" y2="16.65"></line>
+</svg>
+<input id="pf-search-input" oninput="handlePortfolioSearch()" placeholder="Search accounts, C360 plan ID, CSS owner, notes..." type="text"/>
+</div>
+<select class="select-filter" id="pf-type-select" onchange="handlePortfolioFilterChange()">
+<option value="all">All Action Plan Types</option>
+<option value="Onboarding">Onboarding Plans</option>
+<option value="Adoption">Adoption Plans</option>
+</select>
+<select class="select-filter" id="pf-owner-select" onchange="handlePortfolioFilterChange()"></select>
+<select class="select-filter" id="pf-status-select" onchange="handlePortfolioFilterChange()"></select>
+<select class="select-filter" id="pf-pulse-select" onchange="handlePortfolioFilterChange()">
+<option value="all">All Pulses</option>
+<option value="Green">Green</option>
+<option value="Yellow">Yellow</option>
+<option value="Red">Red</option>
+<option value="None">None</option>
+</select>
+<select class="select-filter" id="pf-qtr-select" onchange="handlePortfolioFilterChange()"></select>
+<button class="btn ghost small-btn" onclick="resetPortfolioFilters()" title="Reset all search and dropdown filters">Reset</button>
+<button class="btn ghost small-btn" onclick="exportPortfolioCSV()" style="color:var(--cyan); border-color:rgba(2,200,255,0.4);" title="Export visible portfolio accounts to CSV"><span style="margin-right:4px;">⬇</span> Export CSV</button>
+<span class="text-muted" style="font-size:11.5px; margin-left:auto;"><strong id="pf-visible-count">186</strong> Accounts Visible</span>
+</div>
+
+<!-- Grid Table View -->
+<div class="portfolio-grid-wrap">
+<div class="grid-table-hdr">
+<div class="gh-cell gh-icon"></div>
+<div class="gh-cell gh-acct sortable" onclick="sortPortfolio('clean_acct')">Account Name <span class="sort-arr" id="sort-arr-clean_acct">↕</span></div>
+<div class="gh-cell gh-type sortable" onclick="sortPortfolio('plan_type')">Type <span class="sort-arr" id="sort-arr-plan_type">↕</span></div>
+<div class="gh-cell gh-prio sortable" onclick="sortPortfolio('priority')">Prio <span class="sort-arr" id="sort-arr-priority">↕</span></div>
+<div class="gh-cell gh-owner sortable" onclick="sortPortfolio('owner')">CSS Owner <span class="sort-arr" id="sort-arr-owner">↕</span></div>
+<div class="gh-cell gh-stage sortable" onclick="sortPortfolio('status')">Stage / Status <span class="sort-arr" id="sort-arr-status">↕</span></div>
+<div class="gh-cell gh-pulse sortable" onclick="sortPortfolio('pulse')">Pulse <span class="sort-arr" id="sort-arr-pulse">↕</span></div>
+<div class="gh-cell gh-arr sortable" onclick="sortPortfolio('arr_num')">ARR <span class="sort-arr" id="sort-arr-arr_num">↕</span></div>
+<div class="gh-cell gh-qtr sortable" onclick="sortPortfolio('renewal_quarter')">Renewal Qtr <span class="sort-arr" id="sort-arr-renewal_quarter">↕</span></div>
+<div class="gh-cell gh-progress">Action Plan Steps</div>
+<div class="gh-cell gh-touch sortable" onclick="sortPortfolio('last_modified')">Last Touch <span class="sort-arr" id="sort-arr-last_modified">↕</span></div>
+<div class="gh-cell gh-action">Action Plan</div>
+</div>
+<div class="grid-table-body" id="portfolio-rows-container"></div>
+</div>
+</section>
+
+<!-- ================= VIEW 2: DRILLDOWN ================= -->
+<section class="view-panel" id="view-drilldown">
+<div class="drilldown-bar">
+<button class="btn ghost small-btn" onclick="closeDrilldown()">← Back</button>
+<div class="drilldown-title-wrap">
+<h2 class="drilldown-title" id="drilldown-acct-name">Account Details</h2>
+<div class="drilldown-sub" id="drilldown-acct-sub">C360 Action Plan Context</div>
+</div>
+<div class="drilldown-actions" id="drilldown-actions-header"></div>
+</div>
+<div class="tab-strip" id="drilldown-subtabs">
+<button class="tab-btn active" onclick="switchSubTab('overview')">Overview &amp; Metrics</button>
+<button class="tab-btn" onclick="switchSubTab('milestones')">Milestones &amp; Action Steps</button>
+<button class="tab-btn" onclick="switchSubTab('notes')">C360 Notes &amp; Governance</button>
+<button class="tab-btn" onclick="switchSubTab('sfdc')">Salesforce Links &amp; Objects</button>
+</div>
+<div class="subview-panel active" id="subview-overview"></div>
+<div class="subview-panel" id="subview-milestones"></div>
+<div class="subview-panel" id="subview-notes"></div>
+<div class="subview-panel" id="subview-sfdc"></div>
+</section>
+
+<!-- ================= VIEW 3: AGING ONBOARDING > 120D ================= -->
+<section class="view-panel" id="view-aging">
+<div class="view-header" style="margin-bottom:12px;">
+<div class="view-title" style="font-size:18px; font-weight:700; color:var(--fg);">Aging Onboarding Pipeline (&gt; 120 Days)</div>
+<div class="view-sub" style="font-size:12px; color:var(--text-muted);">Accounts undergoing onboarding engagements exceeding the 120-day governance threshold.</div>
+</div>
+<div class="controls-bar">
+<div class="search-box">
+<svg class="search-icon" fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14">
+<circle cx="11" cy="11" r="8"></circle>
+<line x1="21" x2="16.65" y1="21" y2="16.65"></line>
+</svg>
+<input id="aging-search" oninput="filterAgingTable()" placeholder="Search aging accounts, plan ID, owner, notes..." type="text"/>
+</div>
+<select class="select-filter" id="aging-owner-select" onchange="filterAgingTable()"></select>
+<select class="select-filter" id="aging-status-select" onchange="filterAgingTable()"></select>
+<select class="select-filter" id="aging-pulse-select" onchange="filterAgingTable()">
+<option value="all">All Pulses</option>
+<option value="Green">Green</option>
+<option value="Yellow">Yellow</option>
+<option value="Red">Red</option>
+<option value="None">None</option>
+</select>
+<select class="select-filter" id="aging-days-select" onchange="filterAgingTable()">
+<option value="all">All Aging (&gt;120d)</option>
+<option value="120-180">120 - 180 Days</option>
+<option value="180-270">180 - 270 Days</option>
+<option value="270+">&gt; 270 Days</option>
+</select>
+<button class="btn ghost small-btn" onclick="resetAgingFilters()" title="Reset aging filters">Reset</button>
+<button class="btn ghost small-btn" onclick="exportAgingCSV()" style="color:var(--cyan); border-color:rgba(2,200,255,0.4);" title="Export aging onboarding to CSV"><span style="margin-right:4px;">⬇</span> Export CSV</button>
+<span class="text-muted" style="font-size:11.5px; margin-left:auto;"><strong id="aging-visible-count">129</strong> Records Visible</span>
+</div>
+<div class="table-wrap">
+<table class="data-table" id="aging-table">
+<thead>
+<tr>
+<th class="sortable-hdr" onclick="sortAging('clean_acct')">Account Name <span class="sort-badge" id="aging-sort-clean_acct">↕</span></th>
+<th class="sortable-hdr" onclick="sortAging('id')">C360 Plan ID <span class="sort-badge" id="aging-sort-id">↕</span></th>
+<th class="sortable-hdr" onclick="sortAging('owner')">CSS Owner <span class="sort-badge" id="aging-sort-owner">↕</span></th>
+<th class="sortable-hdr" onclick="sortAging('plan_name')">Plan Scope <span class="sort-badge" id="aging-sort-plan_name">↕</span></th>
+<th class="sortable-hdr" onclick="sortAging('status')">Status <span class="sort-badge" id="aging-sort-status">↕</span></th>
+<th class="sortable-hdr" onclick="sortAging('pulse')">Pulse <span class="sort-badge" id="aging-sort-pulse">↕</span></th>
+<th class="sortable-hdr" onclick="sortAging('days_open')">Days Open <span class="sort-badge" id="aging-sort-days_open">↓</span></th>
+<th class="sortable-hdr" onclick="sortAging('arr_num')">ARR <span class="sort-badge" id="aging-sort-arr_num">↕</span></th>
+<th class="sortable-hdr" onclick="sortAging('last_modified')">Last Touch <span class="sort-badge" id="aging-sort-last_modified">↕</span></th>
+<th>C360 Notes &amp; Engagement Context</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="aging-table-body"></tbody>
+</table>
+</div>
+</section>
+
+<!-- ================= VIEW 4: TEAM CAPACITY ================= -->
+<section class="view-panel" id="view-team">
+<div class="view-header" style="margin-bottom:12px;">
+<div class="view-title" style="font-size:18px; font-weight:700; color:var(--fg);">Team Capacity &amp; Resource Allocation</div>
+<div class="view-sub" style="font-size:12px; color:var(--text-muted);">Workload distribution, ARR coverage, and weighted capacity scoring across all 10 CSS Specialists.</div>
+</div>
+<div class="controls-bar">
+<select class="select-filter" id="team-owner-select" onchange="filterTeamTable()"></select>
+<select class="select-filter" id="team-sort-select" onchange="handleTeamSortDropdownChange()">
+<option value="capacity_score:desc">Sort: Weighted Capacity Score (High to Low)</option>
+<option value="capacity_score:asc">Sort: Weighted Capacity Score (Low to High)</option>
+<option value="total_arr_num:desc">Sort: Total Portfolio ARR (High to Low)</option>
+<option value="total_accounts:desc">Sort: Total Accounts (High to Low)</option>
+<option value="name:asc">Sort: CSS Name (A-Z)</option>
+</select>
+<button class="btn ghost small-btn" onclick="resetTeamFilters()" title="Reset team filters">Reset</button>
+<button class="btn ghost small-btn" onclick="exportTeamCSV()" style="color:var(--cyan); border-color:rgba(2,200,255,0.4);" title="Export team capacity to CSV"><span style="margin-right:4px;">⬇</span> Export CSV</button>
+<span class="text-muted" style="font-size:11.5px; margin-left:auto;"><strong id="team-visible-count">10</strong> Specialists Visible</span>
+</div>
+<div class="table-wrap">
+<table class="data-table" id="team-table">
+<thead>
+<tr>
+<th class="sortable-hdr" onclick="sortTeam('name')">CSS Name <span class="sort-badge" id="team-sort-name">↕</span></th>
+<th class="sortable-hdr" onclick="sortTeam('cps_count')">Active CPS (1.0x) <span class="sort-badge" id="team-sort-cps_count">↕</span></th>
+<th class="sortable-hdr" onclick="sortTeam('workload_count')">Active CSW (1.25x) <span class="sort-badge" id="team-sort-workload_count">↕</span></th>
+<th class="sortable-hdr" onclick="sortTeam('onboarding_count')">Onboarding <span class="sort-badge" id="team-sort-onboarding_count">↕</span></th>
+<th class="sortable-hdr" onclick="sortTeam('adoption_count')">Adoption <span class="sort-badge" id="team-sort-adoption_count">↕</span></th>
+<th class="sortable-hdr" onclick="sortTeam('total_accounts')">Total Accounts <span class="sort-badge" id="team-sort-total_accounts">↕</span></th>
+<th class="sortable-hdr" onclick="sortTeam('total_arr_num')">Total Portfolio ARR <span class="sort-badge" id="team-sort-total_arr_num">↕</span></th>
+<th class="sortable-hdr" onclick="sortTeam('completed_successful_count')">Successful <span class="sort-badge" id="team-sort-completed_successful_count">↕</span></th>
+<th class="sortable-hdr" onclick="sortTeam('derisk_count')">De-Risk (1.5x) <span class="sort-badge" id="team-sort-derisk_count">↕</span></th>
+<th class="sortable-hdr" onclick="sortTeam('red_pulse_count')">Red Pulse <span class="sort-badge" id="team-sort-red_pulse_count">↕</span></th>
+<th class="sortable-hdr" onclick="sortTeam('capacity_score')">Weighted Score <span class="sort-badge" id="team-sort-capacity_score">↓</span></th>
+<th>Actions</th>
+</tr>
+</thead>
+<tbody id="team-table-body"></tbody>
+</table>
+</div>
+</section>
+
+<!-- ================= VIEW 5: RENEWALS RUNWAY ================= -->
+<section class="view-panel" id="view-renewals">
+<div class="view-header" style="margin-bottom:12px;">
+<div class="view-title" style="font-size:18px; font-weight:700; color:var(--fg);">Renewals Runway &amp; Expiration Pipeline</div>
+<div class="view-sub" style="font-size:12px; color:var(--text-muted);">Renewal horizons, quarter-by-quarter contract values, and risk mitigation tracking.</div>
+</div>
+<div class="controls-bar">
+<div class="search-box">
+<svg class="search-icon" fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14">
+<circle cx="11" cy="11" r="8"></circle>
+<line x1="21" x2="16.65" y1="21" y2="16.65"></line>
+</svg>
+<input id="ren-search-input" oninput="filterRenewalsTable()" placeholder="Search renewals, account name, plan ID, owner..." type="text"/>
+</div>
+<select class="select-filter" id="ren-owner-select" onchange="filterRenewalsTable()"></select>
+<select class="select-filter" id="ren-qtr-select" onchange="filterRenewalsTable()"></select>
+<select class="select-filter" id="ren-pulse-select" onchange="filterRenewalsTable()">
+<option value="all">All Pulses</option>
+<option value="Green">Green</option>
+<option value="Yellow">Yellow</option>
+<option value="Red">Red</option>
+</select>
+<select class="select-filter" id="ren-status-select" onchange="filterRenewalsTable()">
+<option value="all">All Statuses</option>
+<option value="derisk">Priority De-Risk Only</option>
+<option value="standard">Standard Renewals</option>
+</select>
+<button class="btn ghost small-btn" onclick="resetRenewalsFilters()" title="Reset renewals filters">Reset</button>
+<button class="btn ghost small-btn" onclick="exportRenewalsCSV()" style="color:var(--cyan); border-color:rgba(2,200,255,0.4);" title="Export renewals to CSV"><span style="margin-right:4px;">⬇</span> Export CSV</button>
+<span class="text-muted" style="font-size:11.5px; margin-left:auto;"><strong id="ren-visible-count">201</strong> Accounts Visible</span>
+</div>
+<div class="table-wrap">
+<table class="data-table" id="ren-table">
+<thead>
+<tr>
+<th class="sortable-hdr" onclick="sortRenewals('clean_acct')">Account Name <span class="sort-badge" id="ren-sort-clean_acct">↕</span></th>
+<th class="sortable-hdr" onclick="sortRenewals('owner')">CSS Owner <span class="sort-badge" id="ren-sort-owner">↕</span></th>
+<th class="sortable-hdr" onclick="sortRenewals('renewal_quarter')">Renewal Qtr <span class="sort-badge" id="ren-sort-renewal_quarter">↕</span></th>
+<th class="sortable-hdr" onclick="sortRenewals('arr_num')">ARR <span class="sort-badge" id="ren-sort-arr_num">↕</span></th>
+<th class="sortable-hdr" onclick="sortRenewals('pulse')">Pulse <span class="sort-badge" id="ren-sort-pulse">↕</span></th>
+<th class="sortable-hdr" onclick="sortRenewals('status')">Status <span class="sort-badge" id="ren-sort-status">↕</span></th>
+<th class="sortable-hdr" onclick="sortRenewals('is_derisk')">De-Risk <span class="sort-badge" id="ren-sort-is_derisk">↕</span></th>
+<th>Action Plan</th>
+</tr>
+</thead>
+<tbody id="ren-table-body"></tbody>
+</table>
+</div>
+</section>
+
+<!-- ================= VIEW 6: DE-RISK PIPELINE ================= -->
+<section class="view-panel" id="view-derisk">
+<div class="view-header" style="margin-bottom:12px;">
+<div class="view-title" style="font-size:18px; font-weight:700; color:var(--fg);">Priority De-Risk Pipeline</div>
+<div class="view-sub" style="font-size:12px; color:var(--text-muted);">High-priority accounts requiring proactive intervention, technical escalation, and executive engagement.</div>
+</div>
+<div class="controls-bar">
+<div class="search-box">
+<svg class="search-icon" fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14">
+<circle cx="11" cy="11" r="8"></circle>
+<line x1="21" x2="16.65" y1="21" y2="16.65"></line>
+</svg>
+<input id="dr-search-input" oninput="filterDeRiskTable()" placeholder="Search de-risk accounts, owner, risk context..." type="text"/>
+</div>
+<select class="select-filter" id="dr-owner-select" onchange="filterDeRiskTable()"></select>
+<select class="select-filter" id="dr-qtr-select" onchange="filterDeRiskTable()"></select>
+<select class="select-filter" id="dr-pulse-select" onchange="filterDeRiskTable()">
+<option value="all">All Pulses</option>
+<option value="Red">Red</option>
+<option value="Yellow">Yellow</option>
+<option value="Green">Green</option>
+</select>
+<button class="btn ghost small-btn" onclick="resetDeriskFilters()" title="Reset de-risk filters">Reset</button>
+<button class="btn ghost small-btn" onclick="exportDeriskCSV()" style="color:var(--cyan); border-color:rgba(2,200,255,0.4);" title="Export de-risk accounts to CSV"><span style="margin-right:4px;">⬇</span> Export CSV</button>
+<span class="text-muted" style="font-size:11.5px; margin-left:auto;"><strong id="dr-visible-count">15</strong> Accounts Visible</span>
+</div>
+<div class="table-wrap">
+<table class="data-table" id="dr-table">
+<thead>
+<tr>
+<th class="sortable-hdr" onclick="sortDerisk('clean_acct')">Account Name <span class="sort-badge" id="dr-sort-clean_acct">↕</span></th>
+<th class="sortable-hdr" onclick="sortDerisk('owner')">CSS Owner <span class="sort-badge" id="dr-sort-owner">↕</span></th>
+<th class="sortable-hdr" onclick="sortDerisk('pulse')">Pulse <span class="sort-badge" id="dr-sort-pulse">↕</span></th>
+<th class="sortable-hdr" onclick="sortDerisk('arr_num')">ARR <span class="sort-badge" id="dr-sort-arr_num">↕</span></th>
+<th class="sortable-hdr" onclick="sortDerisk('renewal_quarter')">Renewal Qtr <span class="sort-badge" id="dr-sort-renewal_quarter">↕</span></th>
+<th>Risk Context &amp; Mitigation Plan</th>
+<th>Action Plan</th>
+</tr>
+</thead>
+<tbody id="dr-table-body"></tbody>
+</table>
+</div>
+</section>
+
+<!-- ================= VIEW 7: NOTES & GOVERNANCE ================= -->
+<section class="view-panel" id="view-governance">
+<div class="view-header" style="margin-bottom:12px;">
+<div class="view-title" style="font-size:18px; font-weight:700; color:var(--fg);">Notes &amp; Governance Ledger</div>
+<div class="view-sub" style="font-size:12px; color:var(--text-muted);">Centralized tracking of Salesforce C360 task notes, customer pulse comments, and governance touchpoint freshness.</div>
+</div>
+<div class="controls-bar">
+<div class="search-box">
+<svg class="search-icon" fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14">
+<circle cx="11" cy="11" r="8"></circle>
+<line x1="21" x2="16.65" y1="21" y2="16.65"></line>
+</svg>
+<input id="gov-search-input" oninput="filterGovTable()" placeholder="Search accounts, plan ID, owner, notes keywords..." type="text"/>
+</div>
+<select class="select-filter" id="gov-owner-select" onchange="filterGovTable()"></select>
+<select class="select-filter" id="gov-type-select" onchange="filterGovTable()">
+<option value="all">All Plan Types</option>
+<option value="Onboarding">Onboarding Plans</option>
+<option value="Adoption">Adoption Plans</option>
+</select>
+<select class="select-filter" id="gov-status-select" onchange="filterGovTable()"></select>
+<select class="select-filter" id="gov-pulse-select" onchange="filterGovTable()">
+<option value="all">All Pulses</option>
+<option value="Green">Green</option>
+<option value="Yellow">Yellow</option>
+<option value="Red">Red</option>
+<option value="None">None</option>
+</select>
+<button class="btn ghost small-btn" onclick="resetGovFilters()" title="Reset governance filters">Reset</button>
+<button class="btn ghost small-btn" onclick="exportGovCSV()" style="color:var(--cyan); border-color:rgba(2,200,255,0.4);" title="Export notes & governance to CSV"><span style="margin-right:4px;">⬇</span> Export CSV</button>
+<span class="text-muted" style="font-size:11.5px; margin-left:auto;"><strong id="gov-visible-count">201</strong> Plans Visible</span>
+</div>
+<div class="table-wrap">
+<table class="data-table" id="gov-table">
+<thead>
+<tr>
+<th class="sortable-hdr" onclick="sortGovTable('clean_acct')">Account Name <span class="sort-badge" id="gov-sort-clean_acct">↕</span></th>
+<th class="sortable-hdr" onclick="sortGovTable('id')">Plan ID <span class="sort-badge" id="gov-sort-id">↕</span></th>
+<th class="sortable-hdr" onclick="sortGovTable('owner')">CSS Owner <span class="sort-badge" id="gov-sort-owner">↕</span></th>
+<th class="sortable-hdr" onclick="sortGovTable('status')">Status <span class="sort-badge" id="gov-sort-status">↕</span></th>
+<th class="sortable-hdr" onclick="sortGovTable('pulse')">Pulse <span class="sort-badge" id="gov-sort-pulse">↕</span></th>
+<th class="sortable-hdr" onclick="sortGovTable('last_modified')">Last Touch <span class="sort-badge" id="gov-sort-last_modified">↕</span></th>
+<th class="sortable-hdr" onclick="sortGovTable('days_open')">Days Open <span class="sort-badge" id="gov-sort-days_open">↕</span></th>
+<th>Recent C360 Notes &amp; Highlights</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="gov-table-body"></tbody>
+</table>
+</div>
+</section>
+
+<!-- ================= VIEW 8: ARCHIVED / CLOSED ================= -->
+<section class="view-panel" id="view-archived">
+<div class="view-header" style="margin-bottom:12px;">
+<div class="view-title" style="font-size:18px; font-weight:700; color:var(--fg);">Archived &amp; Closed Plans</div>
+<div class="view-sub" style="font-size:12px; color:var(--text-muted);">Historical repository of completed, closed, and inactive customer engagement plans.</div>
+</div>
+<div class="controls-bar">
+<div class="search-box">
+<svg class="search-icon" fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14">
+<circle cx="11" cy="11" r="8"></circle>
+<line x1="21" x2="16.65" y1="21" y2="16.65"></line>
+</svg>
+<input id="archived-search-input" oninput="filterArchivedTable()" placeholder="Search archived accounts, plan ID, owner, notes..." type="text"/>
+</div>
+<select class="select-filter" id="archived-owner-select" onchange="filterArchivedTable()"></select>
+<select class="select-filter" id="archived-outcome-select" onchange="filterArchivedTable()">
+<option value="all">All Outcomes</option>
+<option value="successful">Successful Only</option>
+<option value="unsuccessful">Unsuccessful / Cancelled Only</option>
+</select>
+<select class="select-filter" id="archived-type-select" onchange="filterArchivedTable()">
+<option value="all">All Plan Types</option>
+<option value="Onboarding">Onboarding Plans</option>
+<option value="Adoption">Adoption Plans</option>
+</select>
+<button class="btn ghost small-btn" onclick="resetArchivedFilters()" title="Reset archived filters">Reset</button>
+<button class="btn ghost small-btn" onclick="exportArchivedCSV()" style="color:var(--cyan); border-color:rgba(2,200,255,0.4);" title="Export archived plans to CSV"><span style="margin-right:4px;">⬇</span> Export CSV</button>
+<span class="text-muted" style="font-size:11.5px; margin-left:auto;"><strong id="archived-visible-count">65</strong> Plans Visible</span>
+</div>
+<div class="table-wrap">
+<table class="data-table" id="archived-table">
+<thead>
+<tr>
+<th class="sortable-hdr" onclick="sortArchived('clean_acct')">Account Name <span class="sort-badge" id="archived-sort-clean_acct">↕</span></th>
+<th class="sortable-hdr" onclick="sortArchived('id')">Plan ID <span class="sort-badge" id="archived-sort-id">↕</span></th>
+<th class="sortable-hdr" onclick="sortArchived('owner')">CSS Owner <span class="sort-badge" id="archived-sort-owner">↕</span></th>
+<th class="sortable-hdr" onclick="sortArchived('status')">Status <span class="sort-badge" id="archived-sort-status">↕</span></th>
+<th class="sortable-hdr" onclick="sortArchived('pulse')">Pulse <span class="sort-badge" id="archived-sort-pulse">↕</span></th>
+<th class="sortable-hdr" onclick="sortArchived('last_modified')">Last Touch <span class="sort-badge" id="archived-sort-last_modified">↕</span></th>
+<th class="sortable-hdr" onclick="sortArchived('days_open')">Days Open <span class="sort-badge" id="archived-sort-days_open">↕</span></th>
+<th>Action Item Notes / Reason</th>
+<th>Actions</th>
+</tr>
+</thead>
+<tbody id="archived-table-body"></tbody>
+</table>
+</div>
+</section>
+
+<!-- ================= VIEW 9: DATA QUALITY ================= -->
+<section class="view-panel" id="view-quality">
+<div class="view-header" style="margin-bottom:12px;">
+<div class="view-title" style="font-size:18px; font-weight:700; color:var(--fg);">Data Quality &amp; Hygiene Ledger</div>
+<div class="view-sub" style="font-size:12px; color:var(--text-muted);">Actionable remediation list for missing pulse statuses, stalled governance touchpoints, and unlinked C360 records.</div>
+</div>
+<div class="controls-bar">
+<div class="search-box">
+<svg class="search-icon" fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14">
+<circle cx="11" cy="11" r="8"></circle>
+<line x1="21" x2="16.65" y1="21" y2="16.65"></line>
+</svg>
+<input id="qual-search-input" oninput="filterQualityTable()" placeholder="Search quality issues, account name, owner, remediation..." type="text"/>
+</div>
+<select class="select-filter" id="qual-sev-select" onchange="filterQualityTable()">
+<option value="all">All Severities</option>
+<option value="HIGH">HIGH Severity</option>
+<option value="MEDIUM">MEDIUM Severity</option>
+<option value="LOW">LOW Severity</option>
+</select>
+<select class="select-filter" id="qual-type-select" onchange="filterQualityTable()"></select>
+<select class="select-filter" id="qual-owner-select" onchange="filterQualityTable()"></select>
+<button class="btn ghost small-btn" onclick="resetQualityFilters()" title="Reset quality filters">Reset</button>
+<button class="btn ghost small-btn" onclick="exportQualityCSV()" style="color:var(--cyan); border-color:rgba(2,200,255,0.4);" title="Export data quality issues to CSV"><span style="margin-right:4px;">⬇</span> Export CSV</button>
+<span class="text-muted" style="font-size:11.5px; margin-left:auto;"><strong id="qual-visible-count">83</strong> Remediation Items Visible</span>
+</div>
+<div class="table-wrap">
+<table class="data-table" id="qual-table">
+<thead>
+<tr>
+<th class="sortable-hdr" onclick="sortQuality('severity')">Severity <span class="sort-badge" id="qual-sort-severity">↕</span></th>
+<th class="sortable-hdr" onclick="sortQuality('type')">Issue Type <span class="sort-badge" id="qual-sort-type">↕</span></th>
+<th class="sortable-hdr" onclick="sortQuality('account')">Account Name <span class="sort-badge" id="qual-sort-account">↕</span></th>
+<th class="sortable-hdr" onclick="sortQuality('owner')">CSS Owner <span class="sort-badge" id="qual-sort-owner">↕</span></th>
+<th class="sortable-hdr" onclick="sortQuality('action')">Required Remediation <span class="sort-badge" id="qual-sort-action">↕</span></th>
+<th>Actions</th>
+</tr>
+</thead>
+<tbody id="qual-table-body"></tbody>
+</table>
+</div>
+</section>
+
+</main>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
