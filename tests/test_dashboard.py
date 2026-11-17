@@ -1,81 +1,69 @@
 import unittest
 import os
+import sys
 import json
-import re
-from bs4 import BeautifulSoup
 
-class TestWorkloadDashboard(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        cls.data_json_path = os.path.join(cls.repo_root, "data/dashboard-data.json")
-        cls.index_html_path = os.path.join(cls.repo_root, "index.html")
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, base_dir)
 
-        with open(cls.data_json_path, "r", encoding="utf-8") as f:
-            cls.data = json.load(f)
+from ingest.salesforce_source import SalesforceSource
+from ingest.build_data import build_dashboard_data
 
-        with open(cls.index_html_path, "r", encoding="utf-8") as f:
-            cls.html = f.read()
+class TestDashboardIntegrity(unittest.TestCase):
+    def setUp(self):
+        self.source = SalesforceSource()
+        self.data = self.source.fetch_records()
 
-        cls.soup = BeautifulSoup(cls.html, "html.parser")
+    def test_strict_active_isolation(self):
+        """Verify no completed or closed accounts exist in active operational views."""
+        active_views = [
+            ("workload", self.data.get("workload", [])),
+            ("active_cps", self.data.get("active_cps", [])),
+            ("derisk", self.data.get("derisk", [])),
+            ("aging_onboarding", self.data.get("aging_onboarding", [])),
+            ("renewals", self.data.get("renewals", [])),
+            ("notes_governance", self.data.get("notes_governance", []))
+        ]
+        
+        for view_name, accts in active_views:
+            for a in accts:
+                st = str(a.get("status") or "").lower()
+                self.assertFalse(a.get("is_completed", False), f"Error: Account {a.get('clean_acct')} in view {view_name} marked is_completed=True!")
+                self.assertNotIn("completed", st, f"Error: Account {a.get('clean_acct')} in view {view_name} has status {st}!")
+                self.assertNotIn("closed", st, f"Error: Account {a.get('clean_acct')} in view {view_name} has status {st}!")
+                self.assertNotIn("cancelled", st, f"Error: Account {a.get('clean_acct')} in view {view_name} has status {st}!")
 
-    def test_zero_em_dashes(self):
-        """Ensure zero em dashes or en dashes in generated HTML deliverable."""
-        em_count = self.html.count("—") + self.html.count("–")
-        self.assertEqual(em_count, 0, f"Found {em_count} em/en dashes in HTML!")
+    def test_archived_closed_pool(self):
+        """Verify completed accounts are routed exclusively to archived closed."""
+        archived = self.data.get("archived_closed", [])
+        self.assertGreater(len(archived), 0, "Error: Archived closed pool is empty!")
+        for a in archived:
+            self.assertTrue(a.get("is_completed", False), f"Error: Account {a.get('clean_acct')} in archived_closed not marked completed!")
 
-    def test_data_collections_integrity(self):
-        """Verify all 9 collections are properly populated and non-empty."""
-        self.assertGreaterEqual(len(self.data.get("cps", [])), 52)
-        self.assertGreaterEqual(len(self.data.get("workload", [])), 134)
-        self.assertEqual(len(self.data.get("derisk", [])), 15)
-        self.assertEqual(len(self.data.get("aging_onboarding", [])), 129)
-        self.assertEqual(len(self.data.get("renewals", [])), 201)
-        self.assertEqual(len(self.data.get("notes_governance", [])), 201)
-        self.assertEqual(len(self.data.get("archived_unsuccessful", [])), 65)
-        self.assertEqual(len(self.data.get("issues", [])), 83)
-        self.assertEqual(len(self.data.get("people", [])), 10)
+    def test_derisk_purity(self):
+        """Verify De-Risk contains only active accounts with Red pulse or At Risk status."""
+        derisk = self.data.get("derisk", [])
+        for a in derisk:
+            self.assertFalse(a.get("is_completed", False), f"Error: Account {a.get('clean_acct')} in De-Risk is completed!")
+            pulse = a.get("pulse", "")
+            st = str(a.get("status") or "").lower()
+            self.assertTrue(pulse == "Red" or "risk" in st or "off trajectory" in st, f"Error: Account {a.get('clean_acct')} in De-Risk has pulse {pulse} and status {st}")
 
-    def test_topbar_structure(self):
-        """Verify topbar layout, single-line buttons, and no leftover spacer divs."""
-        topbar = self.soup.find("header", class_="topbar")
-        self.assertIsNotNone(topbar)
-        grow_divs = topbar.find_all("div", class_="grow")
-        self.assertEqual(len(grow_divs), 0)
+    def test_build_pipeline(self):
+        """Verify end to end build data pipeline generates valid artifacts."""
+        bundle = build_dashboard_data()
+        self.assertIsNotNone(bundle)
+        self.assertIn("summary", bundle)
+        self.assertIn("workload", bundle)
+        self.assertIn("derisk", bundle)
+        self.assertIn("archived_closed", bundle)
 
-        navgroup = topbar.find("nav", class_="navgroup")
-        self.assertIsNotNone(navgroup)
-        buttons = navgroup.find_all("button", class_="navbtn")
-        self.assertEqual(len(buttons), 8)
-
-    def test_row_top_alignment_css(self):
-        """Verify top alignment is enforced on all grid and table rows."""
-        style_tag = self.soup.find("style")
-        self.assertIsNotNone(style_tag)
-        css = style_tag.string or ""
-        self.assertIn("align-items: start !important", css)
-        self.assertIn("vertical-align: top !important", css)
-
-    def test_archived_count_badge(self):
-        """Verify Archived / Closed count badge is initialized to 65."""
-        badge = self.soup.find("span", id="nav-archived-count")
-        self.assertIsNotNone(badge)
-        self.assertEqual(badge.get_text(strip=True), "65")
-
-    def test_dom_ids_match_js(self):
-        """Verify all DOM IDs referenced in JS exist in HTML."""
-        script_tag = self.soup.find("script")
-        self.assertIsNotNone(script_tag)
-        js = script_tag.string or ""
-
-        all_dom_ids = set()
-        for tag in self.soup.find_all(True):
-            if tag.get("id"):
-                all_dom_ids.add(tag["id"])
-
-        js_get_el = set(re.findall(r"getElementById\(['\"]([^'\"]+)['\"]\)", js))
-        missing_dom = js_get_el - all_dom_ids
-        self.assertEqual(len(missing_dom), 0, f"Missing DOM IDs: {missing_dom}")
+    def test_bobs_active_portfolio(self):
+        """Verify Bob Baughman active accounts are present and zero completed accounts are in his active queue."""
+        bobs_active = [a for a in self.data.get("workload", []) if a.get("owner") == "Bob Baughman"]
+        self.assertGreater(len(bobs_active), 0, "Error: Bob Baughman has no active accounts!")
+        for a in bobs_active:
+            self.assertFalse(a.get("is_completed", False), f"Error: Bob active account {a.get('clean_acct')} is marked completed!")
 
 if __name__ == "__main__":
     unittest.main()

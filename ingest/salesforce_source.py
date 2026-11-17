@@ -23,41 +23,8 @@ class SalesforceSource:
             candidates = glob.glob(os.path.join(self.repo_root, "data/source/*Action*Plan*.*")) +                          glob.glob(os.path.join(self.repo_root, "data/source/WW_Action_Plans*.*"))
             self.ww_csv = candidates[0] if candidates else os.path.join(self.repo_root, "data/source/WW_Action_Plans.csv")
 
-        self.base_snap_path = os.path.join(self.repo_root, "data/history/snapshot-2026-10-22.json")
-        self.mapping_path = os.path.join(self.repo_root, "ingest/sfdc_mapping.json")
-
-    def load_rows_from_file(self, file_path):
-        """Load structured rows from either CSV or HTML email table format."""
-        if not file_path or not os.path.exists(file_path):
-            return []
-        if file_path.endswith((".html", ".htm")):
-            try:
-                from bs4 import BeautifulSoup
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                    soup = BeautifulSoup(f.read(), "html.parser")
-                tables = soup.find_all("table")
-                if not tables:
-                    return []
-                # Pick table with most rows
-                target_table = max(tables, key=lambda t: len(t.find_all("tr")))
-                rows = target_table.find_all("tr")
-                if not rows:
-                    return []
-                headers = [th.get_text(strip=True) for th in rows[0].find_all(["th", "td"])]
-                data = []
-                for r in rows[1:]:
-                    cells = [c.get_text(strip=True) for c in r.find_all(["td", "th"])]
-                    if cells:
-                        row_dict = {headers[i] if i < len(headers) else f"col_{i}": cells[i] for i in range(len(cells))}
-                        data.append(row_dict)
-                return data
-            except Exception as e:
-                print(f"Error parsing HTML {file_path}: {e}")
-                return []
-        else:
-            with open(file_path, "r", encoding="utf-8-sig", errors="replace") as f:
-                return list(csv.DictReader(f))
-
+        # 3. Workload (CSW) Portfolio Source
+        self.csw_snapshot = os.path.join(self.repo_root, "data/history/snapshot-2026-11-16.json")
 
     def fetch_records(self, as_of_date=None):
         if not as_of_date:
@@ -69,64 +36,33 @@ class SalesforceSource:
             "Elvis Ourfali", "Matt Bizer", "Stephan Bayer"
         ]
 
-        DERISK_CONFIG = {
-            "PRUDENTIAL FINANCIAL": {"owner": "Bob Baughman", "notes": "De-risk and executive retention review. Partnering with account team (Scott Poole, Samantha Brown) to address renewal runway and evaluate active CSW cluster telemetry.", "arr": "$1,420,000", "renewal_qtr": "FY27 Q1"},
-            "TRUIST FINANCIAL CORPORATION US": {"owner": "Emmanuel Enumegukae", "notes": "Active CSW cluster deployment onboarding. Addressing telemetry ingestion requirements and policy discovery cadence.", "arr": "$657,624", "renewal_qtr": "FY27 Q1"},
-            "MEDAVIE INC": {"owner": "Tanisha Gordon", "notes": "Customer requested cancellation. CSW cluster offline. Account team aligning on retention options.", "arr": "$180,000", "renewal_qtr": "FY26 Q4"},
-            "FIRST FINANCIAL CORPORATION": {"owner": "Tanisha Gordon", "notes": "Renewal risk identified. Lack of customer resource allocation for policy management.", "arr": "$150,000", "renewal_qtr": "FY27 Q1"},
-            "GREAT NORTHERN CORPORATION": {"owner": "Tanisha Gordon", "notes": "Critical escalation regarding agent compatibility during OS upgrade cycle.", "arr": "$210,000", "renewal_qtr": "FY27 Q1"},
-            "AMERICAN EXPRESS COMPANY US": {"owner": "Tanisha Gordon", "notes": "Security team evaluating alternative vendor tooling. Renewal at risk in FY27 Q2.", "arr": "$850,000", "renewal_qtr": "FY27 Q2"},
-            "TRAVELPORT HOLDINGS LTD US": {"owner": "Tanisha Gordon", "notes": "Executive turnover in SecOps leadership. Stalled deployment cadence.", "arr": "$310,000", "renewal_qtr": "FY27 Q1"}
-        }
-
-        sfdc_acct_map = {}
-        sfdc_plan_map = {}
-        if os.path.exists(self.mapping_path):
-            try:
-                with open(self.mapping_path, "r", encoding="utf-8") as f:
-                    m = json.load(f)
-                    sfdc_acct_map = m.get("accounts", {})
-                    sfdc_plan_map = m.get("plans", {})
-            except Exception as e:
-                print(f"Warning: could not load sfdc_mapping.json: {e}")
-
-        base_snap = {}
-        if os.path.exists(self.base_snap_path):
-            try:
-                with open(self.base_snap_path, "r", encoding="utf-8") as f:
-                    base_snap = json.load(f)
-            except Exception as e:
-                print(f"Warning: could not load base snapshot: {e}")
-
-        base_workload = base_snap.get("workload", [])
-        base_derisk = base_snap.get("derisk", [])
-
         def normalize_name(n):
             if not n:
-                return ""
-            if "elvis" in n.lower() or "ourfali" in n.lower():
-                return "Elvis Ourfali"
-            if "baughman" in n.lower():
+                return "Unassigned"
+            n_low = n.lower()
+            if "baughman" in n_low or "bobby" in n_low:
                 return "Bob Baughman"
-            if "rosenberg" in n.lower():
+            if "rosenberg" in n_low:
                 return "Jeffery Rosenberg"
-            if "schaffner" in n.lower():
-                return "Miranda Schaffner"
-            if "uribe" in n.lower():
+            if "uribe" in n_low:
                 return "Esiquio Uribe"
-            if "furlan" in n.lower():
+            if "furlan" in n_low:
                 return "Fabiano Furlan"
-            if "enumegukae" in n.lower():
+            if "enumegukae" in n_low:
                 return "Emmanuel Enumegukae"
-            if "gordon" in n.lower():
+            if "gordon" in n_low:
                 return "Tanisha Gordon"
-            if "chauhan" in n.lower():
+            if "chauhan" in n_low:
                 return "Brijesh Chauhan"
-            if "bizer" in n.lower():
+            if "ourfali" in n_low or "elvis" in n_low:
+                return "Elvis Ourfali"
+            if "bizer" in n_low:
                 return "Matt Bizer"
-            if "stumpe" in n.lower():
+            if "bayer" in n_low:
+                return "Stephan Bayer"
+            if "stumpe" in n_low:
                 return "Nathan Stumpe"
-            return n
+            return n.strip()
 
         def parse_arr(val):
             if val is None:
@@ -139,77 +75,14 @@ class SalesforceSource:
             except:
                 return 0.0
 
-        def format_quarter(fq_str):
-            if not fq_str:
-                return "FY27 Q1"
-            s = str(fq_str).upper().strip()
-            if "FY" in s:
-                m = re.search(r"FY(\d{2})[ -]?Q([1-4])", s)
-                if m:
-                    return f"FY{m.group(1)} Q{m.group(2)}"
-            if "202" in s:
-                m = re.search(r"20(\d{2})[ -]?Q([1-4])", s)
-                if m:
-                    return f"FY{m.group(1)} Q{m.group(2)}"
-            return "FY27 Q1"
-
         def determine_plan_type(plan_name, status):
             p_low = (plan_name or "").lower()
             st_low = (status or "").lower()
             if "adopt" in p_low or "adopt" in st_low:
                 return "Adoption"
-            if "onboard" in p_low or "onboard" in st_low or "implement" in st_low:
-                return "Onboarding"
             return "Onboarding"
 
-        def enrich_sfdc_links(item):
-            clean = (item.get("clean_acct") or item.get("account_name") or "").strip()
-            clean_up = clean.upper()
-            raw_nm = (item.get("account_name") or "").upper().strip()
-
-            sfdc_acct_id = ""
-            if clean_up in sfdc_acct_map:
-                sfdc_acct_id = sfdc_acct_map[clean_up]
-            elif raw_nm in sfdc_acct_map:
-                sfdc_acct_id = sfdc_acct_map[raw_nm]
-            elif item.get("account_id") and str(item.get("account_id")).startswith("001"):
-                sfdc_acct_id = str(item.get("account_id"))
-            elif item.get("sfdc_account_id") and str(item.get("sfdc_account_id")).startswith("001"):
-                sfdc_acct_id = str(item.get("sfdc_account_id"))
-
-            item["sfdc_account_id"] = sfdc_acct_id
-            if sfdc_acct_id and sfdc_acct_id.startswith("001"):
-                item["sfdc_account_url"] = f"https://ciscosales.lightning.force.com/lightning/r/Account/{sfdc_acct_id}/view"
-            else:
-                item["sfdc_account_url"] = "https://ciscosales.lightning.force.com/lightning/o/Account/list?filterName=Recent"
-
-            sfdc_plan_id = ""
-            if item.get("id") and (str(item.get("id")).startswith("aGt") or str(item.get("id")).startswith("aIC")):
-                sfdc_plan_id = str(item.get("id"))
-            elif item.get("sfdc_plan_id") and (str(item.get("sfdc_plan_id")).startswith("aGt") or str(item.get("sfdc_plan_id")).startswith("aIC")):
-                sfdc_plan_id = str(item.get("sfdc_plan_id"))
-            elif clean_up in sfdc_plan_map:
-                sfdc_plan_id = sfdc_plan_map[clean_up]
-            elif raw_nm in sfdc_plan_map:
-                sfdc_plan_id = sfdc_plan_map[raw_nm]
-
-            item["sfdc_plan_id"] = sfdc_plan_id
-            if sfdc_plan_id and sfdc_plan_id.startswith("aIC"):
-                if sfdc_acct_id and sfdc_acct_id.startswith("001"):
-                    item["sfdc_plan_url"] = f"https://ciscosales.lightning.force.com/lightning/r/C360_Mitigation_Action_Plan__c/{sfdc_plan_id}/view?ws=%2Flightning%2Fr%2FAccount%2F{sfdc_acct_id}%2Fview"
-                else:
-                    item["sfdc_plan_url"] = f"https://ciscosales.lightning.force.com/lightning/r/C360_Mitigation_Action_Plan__c/{sfdc_plan_id}/view"
-            elif sfdc_plan_id and sfdc_plan_id.startswith("aGt"):
-                if sfdc_acct_id and sfdc_acct_id.startswith("001"):
-                    item["sfdc_plan_url"] = f"https://ciscosales.lightning.force.com/lightning/r/C360_CS_Task__c/{sfdc_plan_id}/view?ws=%2Flightning%2Fr%2FAccount%2F{sfdc_acct_id}%2Fview"
-                else:
-                    item["sfdc_plan_url"] = f"https://ciscosales.lightning.force.com/lightning/r/C360_CS_Task__c/{sfdc_plan_id}/view"
-            else:
-                item["sfdc_plan_url"] = ""
-
-            return item
-
-        # 1. Load WW Action Plans CSV (Granular task items)
+        # 1. Load WW Action Plans
         ww_map = {}
         if os.path.exists(self.ww_csv):
             with open(self.ww_csv, "r", encoding="utf-8-sig", errors="replace") as f:
@@ -228,9 +101,11 @@ class SalesforceSource:
                         "created": r.get("Created Date", "").strip()
                     })
 
-        # 2. Load Team Account Overview CSV
-        active_cps_map = {}
-        archived_closed_map = {}
+        # 2. Ingest Live CPS Data & Build Closed Registry
+        active_cps_list = []
+        archived_unsuccessful_list = []
+        archived_successful_list = []
+        closed_registry = set()
 
         if os.path.exists(self.team_csv):
             with open(self.team_csv, "r", encoding="utf-8-sig", errors="replace") as f:
@@ -242,14 +117,12 @@ class SalesforceSource:
                 h_map = {h: i for i, h in enumerate(headers)}
 
                 for r in r_list[1:]:
-                    if not any(r):
-                        continue
+                    if not any(r): continue
                     def g(*col_names):
                         for cn in col_names:
                             if cn in h_map and h_map[cn] < len(r):
                                 val = r[h_map[cn]].strip()
-                                if val:
-                                    return val
+                                if val: return val
                         return ""
 
                     rec_id = g("Record ID", "C360 CS Task ID")
@@ -267,8 +140,10 @@ class SalesforceSource:
                     created_str = g("Created Date")
                     product_milestone = g("C360 Action Plan Customer Pulse Junction : Customer Pulse Name : Product")
 
-                    clean_acct = re.sub(r"^(BU\s*-\s*|CA\s*-\s*|US\s*-\s*)", "", acct_name, flags=re.I).strip()
+                    clean_acct = re.sub(r"^(BU\s*-\s*|CA\s*-\s*|US\s*-\s*|LEGACY\s*-\s*)", "", acct_name, flags=re.I).strip()
                     clean_acct = re.sub(r"\s+(US|BR|CA|LTD|INC|CORP|LLC)$", "", clean_acct, flags=re.I).strip()
+
+                    norm_key = re.sub(r"[^a-z0-9]", "", clean_acct.lower())
 
                     days_since_touch = 0
                     if last_mod_str:
@@ -311,13 +186,20 @@ class SalesforceSource:
                     elif "green" in pulse_raw.lower():
                         pulse_clean = "Green"
 
-                    is_completed = "completed" in status.lower() or "closed" in status.lower() or "cancelled" in status.lower()
-                    is_unsuccessful = "unsuccessful" in status.lower()
+                    st_low = status.lower()
+                    is_closed = "completed" in st_low or "closed" in st_low or "cancelled" in st_low or "stalled" in st_low
+                    is_successful = "successful" in st_low and not ("unsuccessful" in st_low)
+                    is_unsuccessful = is_closed and not is_successful
 
-                    plan_type_slug = "cps" if "cloud protection" in plan_name.lower() else "csw"
-                    unique_key = f"{rec_id}_{plan_type_slug}"
+                    if is_closed:
+                        closed_registry.add(norm_key)
+                        if rec_id: closed_registry.add(rec_id.lower())
+                        if acct_id: closed_registry.add(acct_id.lower())
 
                     plan_type = determine_plan_type(plan_name, status)
+
+                    acct_url = f"https://ciscosales.lightning.force.com/lightning/r/Account/{acct_id}/view" if acct_id else "https://ciscosales.lightning.force.com/lightning/o/Account/list?filterName=Recent"
+                    plan_url = f"https://ciscosales.lightning.force.com/lightning/r/C360_CS_Task__c/{rec_id}/view?ws=%2Flightning%2Fr%2FAccount%2F{acct_id}%2Fview" if (rec_id and acct_id) else (f"https://ciscosales.lightning.force.com/lightning/r/C360_CS_Task__c/{rec_id}/view" if rec_id else "")
 
                     item = {
                         "id": rec_id,
@@ -338,137 +220,82 @@ class SalesforceSource:
                         "arr_num": parse_arr(arr_val),
                         "arr_formatted": f"${int(parse_arr(arr_val)):,}" if parse_arr(arr_val) > 0 else "$0",
                         "account_id": acct_id,
+                        "sfdc_account_url": acct_url,
+                        "sfdc_plan_url": plan_url,
                         "last_modified": last_mod_str,
                         "created_date": created_str,
                         "days_since_touch": days_since_touch,
                         "days_open": days_open,
                         "is_unsuccessful": is_unsuccessful,
-                        "is_completed": is_completed,
+                        "is_completed": is_closed,
                         "action_items": action_items,
                         "product_milestone": product_milestone,
                         "renewal_quarter": "FY27 Q1",
-                        "stage": "Implement" if "implement" in status.lower() else "Onboard"
+                        "stage": "Implement" if "implement" in status.lower() else "Onboard",
+                        "source": "CPS"
                     }
-                    item = enrich_sfdc_links(item)
 
-                    if is_completed:
-                        archived_closed_map[unique_key] = item
+                    if is_closed:
+                        if is_successful:
+                            archived_successful_list.append(item)
+                        else:
+                            archived_unsuccessful_list.append(item)
                     else:
-                        active_cps_map[unique_key] = item
+                        active_cps_list.append(item)
 
-        active_cps_list = list(active_cps_map.values())
-        archived_closed_list = list(archived_closed_map.values())
+        # 3. Ingest Active CSW Workload Accounts (Strictly Excluding Closed)
+        active_csw_list = []
+        snap_derisk_raw = []
+        if os.path.exists(self.csw_snapshot):
+            try:
+                with open(self.csw_snapshot, "r", encoding="utf-8") as f:
+                    snap_data = json.load(f)
+                raw_csw = snap_data.get("workload", [])
+                snap_derisk_raw = snap_data.get("derisk", [])
+                for a in raw_csw:
+                    c_name = a.get("clean_acct") or a.get("account_name") or ""
+                    norm_k = re.sub(r"[^a-z0-9]", "", c_name.lower())
+                    
+                    if "nbcu" in norm_k or "nationalbroadcasting" in norm_k:
+                        continue
+                    if a.get("id", "").lower() in closed_registry or norm_k in closed_registry:
+                        continue
+                    if a.get("is_completed"):
+                        continue
+                    st = str(a.get("status", "")).lower()
+                    if "completed" in st or "unsuccessful" in st or "closed" in st or "cancelled" in st or "stalled" in st:
+                        continue
 
-        # Build comprehensive set of completed/closed identifiers from the source of truth
-        closed_identifiers = set()
-        for it in archived_closed_list:
-            if it.get("clean_acct"):
-                closed_identifiers.add(it["clean_acct"].upper().strip())
-            if it.get("account_name"):
-                closed_identifiers.add(it["account_name"].upper().strip())
-                closed_identifiers.add(re.sub(r"^(BU\s*-\s*|CA\s*-\s*|US\s*-\s*)", "", it["account_name"], flags=re.I).strip().upper())
-            if it.get("id"):
-                closed_identifiers.add(str(it["id"]).strip())
-            if it.get("account_id"):
-                closed_identifiers.add(str(it["account_id"]).strip())
-            if it.get("sfdc_account_id"):
-                closed_identifiers.add(str(it["sfdc_account_id"]).strip())
-            if it.get("sfdc_plan_id"):
-                closed_identifiers.add(str(it["sfdc_plan_id"]).strip())
+                    a["owner"] = normalize_name(a.get("owner"))
+                    a["source"] = "CSW"
+                    a["is_completed"] = False
+                    a["is_unsuccessful"] = False
+                    active_csw_list.append(a)
+            except Exception as e:
+                print(f"Error loading CSW snapshot: {e}")
 
-        # Also add known completed/unsuccessful accounts explicitly
-        for known_closed in ["GRADY HOSPITAL", "IL-STATE OF ILLINOIS DEPARTMENT OF INNOVATION AND TECHNOLOGY", "PRINCIPAL FINANCIAL GROUP INC US", "NAVY CANES", "NAVY CONSOLIDATED AFLOAT NETWORKS AND ENTERPRISES SERVICES (CANES) PROGRAM", "EXELON CORPORATION", "MEDAVIE INC", "FIRST FINANCIAL CORPORATION", "GREAT NORTHERN CORPORATION", "TRAVELPORT HOLDINGS LTD US", "AMERICAN EXPRESS COMPANY US", "VOYA FINANCIAL INC US", "0013400001Y4HNH", "aGte600000107tlCAA"]:
-            closed_identifiers.add(known_closed.upper().strip())
+        # Combined Active Working Accounts (Portfolio)
+        all_active_accounts = active_cps_list + active_csw_list
 
-        active_workload_list = []
-        for w in base_workload:
-            clean_w = (w.get("clean_acct") or w.get("account_name") or "").strip().upper()
-            raw_w = (w.get("account_name") or "").strip().upper()
-            w_id = str(w.get("id") or "").strip()
-            w_acct_id = str(w.get("account_id") or "").strip()
-            w_sfdc_acct = str(w.get("sfdc_account_id") or "").strip()
-            w_sfdc_plan = str(w.get("sfdc_plan_id") or "").strip()
-            st_low = (w.get("status") or "").lower()
-            p_name = w.get("plan_name") or ""
-
-            # Check if this workload item is completed/closed
-            is_item_closed = (
-                "completed" in st_low or "closed" in st_low or "cancelled" in st_low or "unsuccessful" in st_low or
-                clean_w in closed_identifiers or raw_w in closed_identifiers or
-                w_id in closed_identifiers or w_acct_id in closed_identifiers or
-                w_sfdc_acct in closed_identifiers or w_sfdc_plan in closed_identifiers
-            )
-
-            if is_item_closed:
-                w_item = dict(w)
-                w_item["is_completed"] = True
-                w_item["is_unsuccessful"] = ("unsuccessful" in st_low) or ("unsuccessful" in str(w.get("notes") or "").lower())
-                w_item["plan_type"] = determine_plan_type(p_name, w.get("status"))
-                w_item = enrich_sfdc_links(w_item)
-                if not any(a.get("id") == w_item.get("id") or a.get("clean_acct") == w_item.get("clean_acct") for a in archived_closed_list):
-                    archived_closed_list.append(w_item)
-            else:
-                w_item = dict(w)
-                w_item["arr_num"] = parse_arr(w_item.get("arr"))
-                w_item["arr_formatted"] = w_item.get("arr") if "$" in str(w_item.get("arr")) else f"${int(parse_arr(w_item.get('arr'))):,}"
-                w_item["days_since_touch"] = 12
-                w_item["days_open"] = 94
-                w_item["plan_type"] = determine_plan_type(p_name, w.get("status"))
-                w_item = enrich_sfdc_links(w_item)
-                active_workload_list.append(w_item)
-
-        derisk_records = []
-        for d in base_derisk:
-            clean = d.get("clean_acct") or d.get("account_name") or ""
-            clean = clean.replace("BU - ", "").replace("LEGACY - ", "").strip()
-            clean_norm = clean.upper()
-            d_id = str(d.get("id") or "").strip()
-            d_acct_id = str(d.get("account_id") or "").strip()
-            d_sfdc_acct = str(d.get("sfdc_account_id") or "").strip()
-            d_sfdc_plan = str(d.get("sfdc_plan_id") or "").strip()
-            d_st = str(d.get("status") or "").lower()
-
-            # STRICT RULE: Exclude any completed/closed action plans (successful, unsuccessful, or stalled)
-            if (
-                "closed" in d_st or "complete" in d_st or "unsuccessful" in d_st or "stalled" in d_st or
-                clean_norm in closed_identifiers or d_id in closed_identifiers or
-                d_acct_id in closed_identifiers or d_sfdc_acct in closed_identifiers or
-                d_sfdc_plan in closed_identifiers
-            ):
+        # Priority De-Risk pipeline:
+        # Exactly active Red pulse accounts and Priority At-Risk accounts (excluding any closed)
+        derisk_records = [a for a in active_cps_list if a["pulse"] == "Red"]
+        for d in snap_derisk_raw:
+            c_name = d.get("clean_acct") or d.get("account_name") or ""
+            norm_k = re.sub(r"[^a-z0-9]", "", c_name.lower())
+            if norm_k in closed_registry or "principal" in norm_k or "nbcu" in norm_k:
                 continue
+            if not any(re.sub(r"[^a-z0-9]", "", (x.get("clean_acct") or "").lower()) == norm_k for x in derisk_records):
+                d["is_derisk"] = True
+                d["is_completed"] = False
+                d["is_unsuccessful"] = False
+                d["owner"] = normalize_name(d.get("owner"))
+                derisk_records.append(d)
 
-            cfg = DERISK_CONFIG.get(clean_norm, {})
-            owner = cfg.get("owner") or normalize_name(d.get("owner"))
-            notes = cfg.get("notes") or d.get("comments")
-            arr_val = cfg.get("arr") or d.get("arr") or "$0"
-            ren_qtr = cfg.get("renewal_qtr") or format_quarter(d.get("renewal_quarter"))
-
-            rec = dict(d)
-            rec["clean_acct"] = clean
-            rec["owner"] = owner
-            rec["comments"] = notes
-            rec["notes"] = notes
-            rec["arr"] = arr_val
-            rec["arr_num"] = parse_arr(arr_val)
-            rec["arr_formatted"] = arr_val
-            rec["renewal_quarter"] = ren_qtr
-            rec["days_since_touch"] = 8
-            rec["days_open"] = 112
-            rec["pulse"] = "Red"
-            rec["is_derisk"] = True
-            rec["plan_type"] = "Adoption" if "adopt" in (rec.get("plan_name") or "").lower() else "Onboarding"
-            rec = enrich_sfdc_links(rec)
-            derisk_records.append(rec)
-
-        aging_onboarding_list = []
-        for item in active_cps_list + active_workload_list:
-            st_low = (item.get("status") or "").lower()
-            p_low = (item.get("plan_name") or "").lower()
-            if "onboard" in st_low or "onboard" in p_low or "implement" in st_low or "track" in st_low:
-                aging_onboarding_list.append(item)
+        aging_onboarding_list = [a for a in all_active_accounts if a.get("plan_type") == "Onboarding" or "onboard" in str(a.get("status") or "").lower() or "implement" in str(a.get("status") or "").lower()]
 
         renewals_list = []
-        for item in active_cps_list + active_workload_list + derisk_records:
+        for item in all_active_accounts:
             renewals_list.append({
                 "clean_acct": item.get("clean_acct"),
                 "account_name": item.get("account_name"),
@@ -481,13 +308,15 @@ class SalesforceSource:
                 "renewal_quarter": item.get("renewal_quarter") or "FY27 Q1",
                 "comments": item.get("comments") or item.get("notes"),
                 "sfdc_account_url": item.get("sfdc_account_url"),
-                "sfdc_plan_url": item.get("sfdc_plan_url")
+                "sfdc_plan_url": item.get("sfdc_plan_url"),
+                "is_derisk": item.get("is_derisk", False),
+                "source": item.get("source", "CPS")
             })
 
-        notes_gov_list = active_cps_list + active_workload_list + derisk_records
+        notes_gov_list = list(all_active_accounts)
 
         issues_list = []
-        for a in active_cps_list + active_workload_list:
+        for a in all_active_accounts:
             if not a.get("pulse") or a.get("pulse") == "None":
                 issues_list.append({
                     "severity": "MEDIUM",
@@ -525,57 +354,69 @@ class SalesforceSource:
                     "sfdc_plan_url": a.get("sfdc_plan_url")
                 })
 
-        all_active = active_cps_list + active_workload_list
         people_stats = []
         for member in TEAM_MEMBERS:
-            m_cps = [a for a in active_cps_list if a["owner"] == member]
-            m_workload = [a for a in active_workload_list if a["owner"] == member]
-            m_all = m_cps + m_workload
+            m_all = [a for a in all_active_accounts if a["owner"] == member]
             
             total_accts = len(m_all)
             arr_total = sum(a.get("arr_num", 0.0) for a in m_all)
             
             onboard_cnt = sum(1 for a in m_all if a.get("plan_type") == "Onboarding")
             adopt_cnt = sum(1 for a in m_all if a.get("plan_type") == "Adoption")
-            succ_cnt = sum(1 for a in archived_closed_list if a["owner"] == member and "successful" in (a.get("status") or "").lower() and "unsuccessful" not in (a.get("status") or "").lower())
+            succ_cnt = sum(1 for a in archived_successful_list if a["owner"] == member)
+            unsucc_cnt = sum(1 for a in archived_unsuccessful_list if a["owner"] == member)
             derisk_cnt = sum(1 for a in derisk_records if a["owner"] == member)
             red_cnt = sum(1 for a in m_all if a.get("pulse") == "Red")
             
             cap_score = round(onboard_cnt * 1.0 + adopt_cnt * 1.25 + derisk_cnt * 1.5 + red_cnt * 0.5, 2)
-            arr_m = f"${arr_total / 1_000_000:.2f}M" if arr_total >= 1_000_000 else f"${int(arr_total):,}"
             
             people_stats.append({
                 "name": member,
-                "total_accounts": total_accts,
-                "total_arr": arr_m,
+                "role": "CSS",
+                "assigned_count": total_accts,
+                "total_arr": f"${int(arr_total):,}" if arr_total > 0 else "$0",
                 "total_arr_num": arr_total,
-                "cps_count": len(m_cps),
-                "workload_count": len(m_workload),
                 "onboarding_count": onboard_cnt,
                 "adoption_count": adopt_cnt,
-                "completed_successful_count": succ_cnt,
+                "successful_count": succ_cnt,
+                "unsuccessful_count": unsucc_cnt,
+                "completed_count": succ_cnt + unsucc_cnt,
                 "derisk_count": derisk_cnt,
                 "red_pulse_count": red_cnt,
-                "capacity_score": cap_score
+                "capacity_score": cap_score,
+                "capacity_status": "Overloaded" if cap_score >= 25 else ("Heavy" if cap_score >= 18 else ("Normal" if cap_score >= 8 else "Available"))
             })
 
+        total_active_arr = sum(a.get("arr_num", 0.0) for a in all_active_accounts)
+        summary_kpis = {
+            "total_accounts": len(all_active_accounts),
+            "total_arr": f"${round(total_active_arr/1e6, 2)}M" if total_active_arr >= 1e6 else (f"${int(total_active_arr):,}" if total_active_arr > 0 else "$0"),
+            "total_arr_num": total_active_arr,
+            "cps_accounts": len(active_cps_list),
+            "cps_arr": f"${round(sum(a.get('arr_num', 0.0) for a in active_cps_list)/1e6, 2)}M",
+            "csw_accounts": len(active_csw_list),
+            "csw_arr": f"${round(sum(a.get('arr_num', 0.0) for a in active_csw_list)/1e6, 2)}M",
+            "onboarding_count": sum(1 for a in all_active_accounts if a.get("plan_type") == "Onboarding"),
+            "adoption_count": sum(1 for a in all_active_accounts if a.get("plan_type") == "Adoption"),
+            "derisk_count": len(derisk_records),
+            "completed_unsuccessful_count": len(archived_unsuccessful_list),
+            "completed_successful_count": len(archived_successful_list),
+            "archived_closed_count": len(archived_unsuccessful_list) + len(archived_successful_list),
+            "issues_count": len(issues_list)
+        }
+
         return {
-            "as_of_date": as_of_date.strftime("%Y-%m-%d"),
-            "summary": {
-                "total_accounts": len(active_cps_list) + len(active_workload_list),
-                "total_arr": sum(p.get("arr", 0) for p in active_cps_list) + sum(parse_arr(w.get("arr", 0)) for w in active_workload_list),
-                "active_onboarding": sum(1 for p in active_cps_list if p.get("plan_type") == "Onboarding"),
-                "active_adoption": sum(1 for p in active_cps_list if p.get("plan_type") == "Adoption"),
-                "derisk_count": len(derisk_records),
-                "archived_count": len(archived_closed_list)
-            },
+            "summary": summary_kpis,
+            "workload": active_csw_list,
             "cps": active_cps_list,
-            "workload": active_workload_list,
+            "active_cps": active_cps_list,
             "derisk": derisk_records,
             "aging_onboarding": aging_onboarding_list,
             "renewals": renewals_list,
             "notes_governance": notes_gov_list,
-            "archived_unsuccessful": archived_closed_list,
+            "archived_unsuccessful": archived_unsuccessful_list,
+            "archived_successful": archived_successful_list,
+            "archived_closed": archived_unsuccessful_list + archived_successful_list,
             "issues": issues_list,
             "people": people_stats
         }

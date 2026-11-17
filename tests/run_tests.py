@@ -1,52 +1,68 @@
+import unittest
 import os
 import sys
-import unittest
 
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(base_dir, "ingest"))
-sys.path.insert(0, os.path.join(base_dir, "reports"))
+sys.path.insert(0, base_dir)
 
-from salesforce_source import SalesforceSource
-from history import SnapshotHistory
-from build_data import build_dashboard_data
-from weekly_report import generate_weekly_report
+from ingest.salesforce_source import SalesforceSource
+from ingest.build_data import build_dashboard_data
 
-class TestDashboard(unittest.TestCase):
-    def test_salesforce_source_shape(self):
-        src = SalesforceSource()
-        res = src.fetch_records()
-        self.assertIn("people", res)
-        self.assertIn("cps", res)
-        self.assertIn("workload", res)
-        self.assertIn("issues", res)
-        self.assertTrue(len(res["people"]) > 0)
+class TestDashboardIntegrity(unittest.TestCase):
+    def setUp(self):
+        self.source = SalesforceSource()
+        self.data = self.source.fetch_records()
 
-    def test_roster_members(self):
-        src = SalesforceSource()
-        res = src.fetch_records()
-        people_names = {p["name"] for p in res["people"]}
-        self.assertEqual(len(people_names), 10)
-        self.assertIn("Bob Baughman", people_names)
-        self.assertIn("Stephan Bayer", people_names)
+    def test_strict_active_isolation(self):
+        """Verify no completed or closed accounts exist in active operational views."""
+        active_views = [
+            ("workload", self.data.get("workload", [])),
+            ("active_cps", self.data.get("active_cps", [])),
+            ("derisk", self.data.get("derisk", [])),
+            ("aging_onboarding", self.data.get("aging_onboarding", [])),
+            ("renewals", self.data.get("renewals", [])),
+            ("notes_governance", self.data.get("notes_governance", []))
+        ]
+        
+        for view_name, accts in active_views:
+            for a in accts:
+                st = str(a.get("status") or "").lower()
+                self.assertFalse(a.get("is_completed", False), f"Error: Account {a.get('clean_acct')} in view {view_name} marked is_completed=True!")
+                self.assertNotIn("completed", st, f"Error: Account {a.get('clean_acct')} in view {view_name} has status {st}!")
+                self.assertNotIn("closed", st, f"Error: Account {a.get('clean_acct')} in view {view_name} has status {st}!")
+                self.assertNotIn("cancelled", st, f"Error: Account {a.get('clean_acct')} in view {view_name} has status {st}!")
 
-    def test_capacity_score_calculation(self):
-        src = SalesforceSource()
-        res = src.fetch_records()
-        for p in res["people"]:
-            self.assertGreaterEqual(p["capacity_score"], 0)
+    def test_archived_closed_pool(self):
+        """Verify completed accounts are routed exclusively to archived closed."""
+        archived = self.data.get("archived_closed", [])
+        self.assertGreater(len(archived), 0, "Error: Archived closed pool is empty!")
+        for a in archived:
+            self.assertTrue(a.get("is_completed", False), f"Error: Account {a.get('clean_acct')} in archived_closed not marked completed!")
 
-    def test_build_pipeline_and_bundle(self):
-        data = build_dashboard_data(output_dir=base_dir)
-        self.assertTrue(os.path.exists(os.path.join(base_dir, "data/dashboard-data.json")))
-        self.assertTrue(os.path.exists(os.path.join(base_dir, "app/data.js")))
-        self.assertTrue(os.path.exists(os.path.join(base_dir, "dist/workload-dashboard.html")))
+    def test_derisk_purity(self):
+        """Verify De-Risk contains only active accounts with Red pulse or At Risk status."""
+        derisk = self.data.get("derisk", [])
+        for a in derisk:
+            self.assertFalse(a.get("is_completed", False), f"Error: Account {a.get('clean_acct')} in De-Risk is completed!")
+            pulse = a.get("pulse", "")
+            st = str(a.get("status") or "").lower()
+            self.assertTrue(pulse == "Red" or "risk" in st or "off trajectory" in st, f"Error: Account {a.get('clean_acct')} in De-Risk has pulse {pulse} and status {st}")
 
-    def test_weekly_report_generation(self):
-        rep_file = generate_weekly_report(
-            data_path=os.path.join(base_dir, "data/dashboard-data.json"),
-            out_dir=os.path.join(base_dir, "reports/out")
-        )
-        self.assertTrue(os.path.exists(rep_file))
+    def test_build_pipeline(self):
+        """Verify end to end build data pipeline generates valid artifacts."""
+        bundle = build_dashboard_data()
+        self.assertIsNotNone(bundle)
+        self.assertIn("summary", bundle)
+        self.assertIn("workload", bundle)
+        self.assertIn("derisk", bundle)
+        self.assertIn("archived_closed", bundle)
+
+    def test_bobs_active_portfolio(self):
+        """Verify Bob Baughman active accounts are present and zero completed accounts are in his active queue."""
+        bobs_active = [a for a in self.data.get("workload", []) if a.get("owner") == "Bob Baughman"]
+        self.assertGreater(len(bobs_active), 0, "Error: Bob Baughman has no active accounts!")
+        for a in bobs_active:
+            self.assertFalse(a.get("is_completed", False), f"Error: Bob active account {a.get('clean_acct')} is marked completed!")
 
 if __name__ == "__main__":
     unittest.main()

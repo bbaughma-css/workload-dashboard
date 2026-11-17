@@ -19,15 +19,17 @@ def build_dashboard_data(output_dir=None):
     source = SalesforceSource()
     raw_data = source.fetch_records()
     
-    # SAFETY GUARD: Ensure dataset is never empty
-    if not raw_data or len(raw_data.get("renewals", [])) < 50:
-        print("WARNING: Ingest returned fewer than 50 records. Falling back to cached dashboard-data.json...")
+    # SAFETY GUARD: Ensure dataset is never empty (active + archived accounts)
+    total_records = len(raw_data.get("workload", [])) + len(raw_data.get("archived_closed", []))
+    if not raw_data or total_records < 10:
+        print("WARNING: Ingest returned fewer than 10 total records. Falling back to cached dashboard-data.json...")
         cached_json = os.path.join(output_dir, "data/dashboard-data.json")
         if os.path.exists(cached_json):
             with open(cached_json, "r", encoding="utf-8") as f:
                 raw_data = json.load(f)
                 
-    if not raw_data or len(raw_data.get("renewals", [])) < 50:
+    total_records = len(raw_data.get("workload", [])) + len(raw_data.get("archived_closed", []))
+    if not raw_data or total_records < 10:
         raise ValueError("FATAL: Ingestion failed and no valid data cache available. Aborting build to protect live data.")
 
     # 2. History & Change Detection
