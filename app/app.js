@@ -28,6 +28,9 @@ function getAllWorkingAccounts() {
   const seen = new Set();
 
   [...cps, ...workload].forEach(a => {
+    if (a.is_completed) return;
+    const st = String(a.status || '').toLowerCase();
+    if (st.includes('completed') || st.includes('closed') || st.includes('unsuccessful') || st.includes('cancelled') || st.includes('stalled')) return;
     const rawName = (a.clean_acct || a.account_name || '').trim();
     const type = a.plan_type || 'Onboarding';
     const key = `${rawName}::${type}`;
@@ -363,7 +366,10 @@ function renderAgingOnboardingTable() {
   if (!tbody) return;
   tbody.innerHTML = '';
 
-  let list = [...(data.aging_onboarding || [])];
+  let list = [...(data.aging_onboarding || [])].filter(a => {
+    const st = String(a.status || '').toLowerCase();
+    return !a.is_completed && !st.includes('completed') && !st.includes('closed') && !st.includes('unsuccessful') && !st.includes('cancelled');
+  });
   const query = (document.getElementById('aging-search')?.value || '').toLowerCase().trim();
   const owner = document.getElementById('aging-owner-select')?.value || 'all';
   const status = document.getElementById('aging-status-select')?.value || 'all';
@@ -604,7 +610,10 @@ function renderRenewalsTable() {
   if (!tbody) return;
   tbody.innerHTML = '';
 
-  let list = [...(data.renewals || [])];
+  let list = [...(data.renewals || [])].filter(a => {
+    const st = String(a.status || '').toLowerCase();
+    return !a.is_completed && !st.includes('completed') && !st.includes('closed') && !st.includes('unsuccessful') && !st.includes('cancelled');
+  });
   const query = (document.getElementById('ren-search-input')?.value || '').toLowerCase().trim();
   const owner = document.getElementById('ren-owner-select')?.value || 'all';
   const qtr = document.getElementById('ren-qtr-select')?.value || 'all';
