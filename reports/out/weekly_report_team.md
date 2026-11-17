@@ -1,5 +1,5 @@
 # Weekly Account Governance Report (All Specialists)
-**As of:** 2026-11-16 | **Distribution:** Bob Baughman & Nathan Stumpe
+**As of:** 2026-11-17 | **Distribution:** Bob Baughman & Nathan Stumpe
 
 ## 1. Executive Summary
 - **Total Action Plans Audited:** 52
