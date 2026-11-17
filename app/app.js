@@ -720,7 +720,10 @@ function renderDeRiskTable() {
   if (!tbody) return;
   tbody.innerHTML = '';
 
-  let list = [...(data.derisk || [])];
+  let list = [...(data.derisk || [])].filter(a => {
+    const st = String(a.status || '').toLowerCase();
+    return !st.includes('closed') && !st.includes('complete') && !st.includes('unsuccessful') && !st.includes('stalled');
+  });
   const query = (document.getElementById('dr-search-input')?.value || '').toLowerCase().trim();
   const owner = document.getElementById('dr-owner-select')?.value || 'all';
   const qtr = document.getElementById('dr-qtr-select')?.value || 'all';
