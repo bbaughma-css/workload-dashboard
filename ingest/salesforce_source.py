@@ -72,9 +72,6 @@ class SalesforceSource:
         DERISK_CONFIG = {
             "PRUDENTIAL FINANCIAL": {"owner": "Bob Baughman", "notes": "De-risk and executive retention review. Partnering with account team (Scott Poole, Samantha Brown) to address renewal runway and evaluate active CSW cluster telemetry.", "arr": "$1,420,000", "renewal_qtr": "FY27 Q1"},
             "TRUIST FINANCIAL CORPORATION US": {"owner": "Emmanuel Enumegukae", "notes": "Active CSW cluster deployment onboarding. Addressing telemetry ingestion requirements and policy discovery cadence.", "arr": "$657,624", "renewal_qtr": "FY27 Q1"},
-            "GRADY HOSPITAL": {"owner": "Bob Baughman", "notes": "Active de-risk technical assistance. Partnering with SecOps on agent health and cluster telemetry monitoring.", "arr": "$280,000", "renewal_qtr": "FY27 Q2"},
-            "IL-STATE OF ILLINOIS DEPARTMENT OF INNOVATION AND TECHNOLOGY": {"owner": "Bob Baughman", "notes": "De-risk technical review. Working with DoIT architecture leads on enterprise cluster stability and policy validation.", "arr": "$540,000", "renewal_qtr": "FY26 Q4"},
-            "PRINCIPAL FINANCIAL GROUP INC US": {"owner": "Bob Baughman", "notes": "Technical engagement and policy modeling review across hybrid infrastructure.", "arr": "$320,000", "renewal_qtr": "FY27 Q2"},
             "MEDAVIE INC": {"owner": "Tanisha Gordon", "notes": "Customer requested cancellation. CSW cluster offline. Account team aligning on retention options.", "arr": "$180,000", "renewal_qtr": "FY26 Q4"},
             "FIRST FINANCIAL CORPORATION": {"owner": "Tanisha Gordon", "notes": "Renewal risk identified. Lack of customer resource allocation for policy management.", "arr": "$150,000", "renewal_qtr": "FY27 Q1"},
             "GREAT NORTHERN CORPORATION": {"owner": "Tanisha Gordon", "notes": "Critical escalation regarding agent compatibility during OS upgrade cycle.", "arr": "$210,000", "renewal_qtr": "FY27 Q1"},
@@ -362,16 +359,54 @@ class SalesforceSource:
         active_cps_list = list(active_cps_map.values())
         archived_closed_list = list(archived_closed_map.values())
 
+        # Build comprehensive set of completed/closed identifiers from the source of truth
+        closed_identifiers = set()
+        for it in archived_closed_list:
+            if it.get("clean_acct"):
+                closed_identifiers.add(it["clean_acct"].upper().strip())
+            if it.get("account_name"):
+                closed_identifiers.add(it["account_name"].upper().strip())
+                closed_identifiers.add(re.sub(r"^(BU\s*-\s*|CA\s*-\s*|US\s*-\s*)", "", it["account_name"], flags=re.I).strip().upper())
+            if it.get("id"):
+                closed_identifiers.add(str(it["id"]).strip())
+            if it.get("account_id"):
+                closed_identifiers.add(str(it["account_id"]).strip())
+            if it.get("sfdc_account_id"):
+                closed_identifiers.add(str(it["sfdc_account_id"]).strip())
+            if it.get("sfdc_plan_id"):
+                closed_identifiers.add(str(it["sfdc_plan_id"]).strip())
+
+        # Also add known completed/unsuccessful accounts explicitly
+        for known_closed in ["GRADY HOSPITAL", "IL-STATE OF ILLINOIS DEPARTMENT OF INNOVATION AND TECHNOLOGY", "PRINCIPAL FINANCIAL GROUP INC US", "NAVY CANES", "NAVY CONSOLIDATED AFLOAT NETWORKS AND ENTERPRISES SERVICES (CANES) PROGRAM", "EXELON CORPORATION", "MEDAVIE INC", "FIRST FINANCIAL CORPORATION", "GREAT NORTHERN CORPORATION", "TRAVELPORT HOLDINGS LTD US", "AMERICAN EXPRESS COMPANY US", "VOYA FINANCIAL INC US", "0013400001Y4HNH", "aGte600000107tlCAA"]:
+            closed_identifiers.add(known_closed.upper().strip())
+
         active_workload_list = []
         for w in base_workload:
+            clean_w = (w.get("clean_acct") or w.get("account_name") or "").strip().upper()
+            raw_w = (w.get("account_name") or "").strip().upper()
+            w_id = str(w.get("id") or "").strip()
+            w_acct_id = str(w.get("account_id") or "").strip()
+            w_sfdc_acct = str(w.get("sfdc_account_id") or "").strip()
+            w_sfdc_plan = str(w.get("sfdc_plan_id") or "").strip()
             st_low = (w.get("status") or "").lower()
             p_name = w.get("plan_name") or ""
-            if "completed" in st_low or "closed" in st_low or "cancelled" in st_low or "unsuccessful" in st_low:
+
+            # Check if this workload item is completed/closed
+            is_item_closed = (
+                "completed" in st_low or "closed" in st_low or "cancelled" in st_low or "unsuccessful" in st_low or
+                clean_w in closed_identifiers or raw_w in closed_identifiers or
+                w_id in closed_identifiers or w_acct_id in closed_identifiers or
+                w_sfdc_acct in closed_identifiers or w_sfdc_plan in closed_identifiers
+            )
+
+            if is_item_closed:
                 w_item = dict(w)
                 w_item["is_completed"] = True
-                w_item["is_unsuccessful"] = "unsuccessful" in st_low
+                w_item["is_unsuccessful"] = ("unsuccessful" in st_low) or ("unsuccessful" in str(w.get("notes") or "").lower())
                 w_item["plan_type"] = determine_plan_type(p_name, w.get("status"))
-                archived_closed_list.append(w_item)
+                w_item = enrich_sfdc_links(w_item)
+                if not any(a.get("id") == w_item.get("id") or a.get("clean_acct") == w_item.get("clean_acct") for a in archived_closed_list):
+                    archived_closed_list.append(w_item)
             else:
                 w_item = dict(w)
                 w_item["arr_num"] = parse_arr(w_item.get("arr"))
@@ -387,6 +422,20 @@ class SalesforceSource:
             clean = d.get("clean_acct") or d.get("account_name") or ""
             clean = clean.replace("BU - ", "").replace("LEGACY - ", "").strip()
             clean_norm = clean.upper()
+            d_id = str(d.get("id") or "").strip()
+            d_acct_id = str(d.get("account_id") or "").strip()
+            d_sfdc_acct = str(d.get("sfdc_account_id") or "").strip()
+            d_sfdc_plan = str(d.get("sfdc_plan_id") or "").strip()
+            d_st = str(d.get("status") or "").lower()
+
+            # STRICT RULE: Exclude any completed/closed action plans (successful, unsuccessful, or stalled)
+            if (
+                "closed" in d_st or "complete" in d_st or "unsuccessful" in d_st or "stalled" in d_st or
+                clean_norm in closed_identifiers or d_id in closed_identifiers or
+                d_acct_id in closed_identifiers or d_sfdc_acct in closed_identifiers or
+                d_sfdc_plan in closed_identifiers
+            ):
+                continue
 
             cfg = DERISK_CONFIG.get(clean_norm, {})
             owner = cfg.get("owner") or normalize_name(d.get("owner"))

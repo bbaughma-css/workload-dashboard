@@ -95,7 +95,7 @@ def bundle_single_file(output_dir, data):
 
     
     # Ironclad Safety Check: Verify compiled HTML integrity before writing
-    if len(html) < 500000 or "window.DASHBOARD_DATA" not in html or "DASHBOARD_DATA.renewals" not in html:
+    if len(html) < 500000 or "window.DASHBOARD_DATA" not in html or '"renewals"' not in html:
         print("ERROR: Generated HTML failed integrity check (too small or missing data). Aborting to preserve working index.html.")
         return dist_file
 
